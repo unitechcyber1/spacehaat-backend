@@ -1,0 +1,25 @@
+node_modules/*
+package-lock.json
+dist/*
+# /package.json
+logs/*
+.vscode/*
+uploads/*
+.env
+logs/*
+.vscode/*
+uploads/*
+.env/*
+.htaccess
+.DS_Store
+files/*
+
+# Secrets / keys / local editor artifacts
+*.swp
+*.swo
+*.swpx
+.env.swp
+spacehaat-ssh-key
+spacehaat-ssh-key.pub
+listing-module-queries-9d143be3b97d.json
+website-queries-form-cf8165b3b02a.json
