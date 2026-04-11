@@ -1,5 +1,4 @@
-import dotenv from 'dotenv';
-dotenv.config();
+import './config/loadEnv.js';
 import express from 'express';
 let app = express();
 // Required for Twilio webhook signature validation behind ngrok/reverse proxy
@@ -47,12 +46,31 @@ initSocket(server);
     Mongoose setup
 */
 
+const mongoStateLabel = (state) =>
+    ({ 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' }[state] ?? 'unknown');
 
-// mongoose.set('useCreateIndex', true);
-// mongoose.set('useFindAndModify', false);
-mongoose.connect(database.uri);
-mongoose.connection.on('error', logger.error);
+mongoose.connection.on('connected', () => {
+    const { name, host } = mongoose.connection;
+    console.log(`[Database] MongoDB connected (db: ${name ?? 'n/a'}, host: ${host ?? 'n/a'})`);
+    logger.info(`MongoDB connected (db: ${name ?? 'n/a'})`, 'Database');
+});
+
+mongoose.connection.on('disconnected', () => {
+    console.warn(`[Database] MongoDB disconnected (${mongoStateLabel(mongoose.connection.readyState)})`);
+    logger.warn('MongoDB disconnected', 'Database');
+});
+
+mongoose.connection.on('error', (err) => {
+    console.error('[Database] MongoDB error:', err.message);
+    logger.error(err, 'Database');
+});
+
 mongoose.Promise = global.Promise;
+
+mongoose.connect(database.uri).catch((err) => {
+    console.error('[Database] MongoDB initial connection failed:', err.message);
+    logger.error(err, 'Database');
+});
 
 /*
      XSS Security
@@ -189,7 +207,41 @@ app.use(function (req, res, next) {
 });
 app.get('/', (req, res) => {
     res.send("Server connected successfully!")
-})
+});
+
+/** MongoDB readiness: readyState 1 + admin ping when possible */
+app.get('/health', async (req, res) => {
+    const readyState = mongoose.connection.readyState;
+    const stateLabel = mongoStateLabel(readyState);
+    const name = mongoose.connection.name || null;
+    const host = mongoose.connection.host || null;
+
+    let pingOk = false;
+    let pingError = null;
+    if (readyState === 1 && mongoose.connection.db) {
+        try {
+            await mongoose.connection.db.admin().command({ ping: 1 });
+            pingOk = true;
+        } catch (e) {
+            pingError = e.message;
+        }
+    }
+
+    const connected = readyState === 1 && pingOk;
+    const body = {
+        ok: connected,
+        mongo: {
+            connected,
+            state: readyState,
+            stateLabel,
+            name,
+            host,
+            ping: pingOk ? 'ok' : readyState === 1 ? 'failed' : 'skipped',
+            ...(pingError ? { pingError } : {})
+        }
+    };
+    res.status(connected ? 200 : 503).json(body);
+});
 
 app.use('/img', express.static(path.join(__dirname.split('\src')[0], 'files/images')));
 // CheckToken.jwtVerify , checkPermissions,  
