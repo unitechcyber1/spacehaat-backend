@@ -1,6 +1,11 @@
 import { google } from "googleapis";
 import { JWT } from "google-auth-library";
-import keys from "../../listing-module-queries-9d143be3b97d.json" assert { type: "json" };
+import { loadGoogleServiceAccountJson } from "./loadGoogleCredentials.js";
+
+const keys = loadGoogleServiceAccountJson({
+    prefix: "GOOGLE_LISTING_SHEETS_CREDENTIALS",
+    defaultFilename: "listing-module-queries-9d143be3b97d.json",
+});
 
 const client = new JWT({
     email: keys.client_email,

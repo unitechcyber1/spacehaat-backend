@@ -1,6 +1,11 @@
 import { google } from "googleapis";
 import { JWT } from "google-auth-library";
-import keys from '../../website-queries-form-cf8165b3b02a.json' assert { type: "json" };
+import { loadGoogleServiceAccountJson } from "./loadGoogleCredentials.js";
+
+const keys = loadGoogleServiceAccountJson({
+    prefix: "GOOGLE_WEB_QUERY_CREDENTIALS",
+    defaultFilename: "website-queries-form-cf8165b3b02a.json",
+});
 
 const client = new JWT({
     email: keys.client_email,
