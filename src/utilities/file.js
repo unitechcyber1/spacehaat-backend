@@ -26,23 +26,33 @@ class File {
             throw (e);
         }
     }
-    async _getS3Params(key, body, imageFolderName) {
+    _normalizeKeyPrefix(prefix) {
+        if (!prefix || typeof prefix !== 'string') {
+            return 'images';
+        }
+        return prefix.replace(/^\/+|\/+$/g, '');
+    }
+
+    async _getS3Params(key, body, keyPrefix) {
+        const prefix = this._normalizeKeyPrefix(keyPrefix);
         return {
-            Key: key,
+            Key: `${prefix}/${key}`,
             Body: body,
             StorageClass: storage.s3.storageClass,
-            Bucket: imageFolderName,
+            Bucket: storage.s3.bucket,
             ContentType: 'image/webp',
         };
     }
      convertS3ToCloudFront(originalUrl) {
-        const s3Domain = 'cofynd-staging.s3.ap-south-1.amazonaws.com';
-        const cloudFrontDomain = 'img.cofynd.com';
-        const convertedUrl = originalUrl.replace(s3Domain, cloudFrontDomain);
+        const s3Domain = `${storage.s3.bucket}.s3.${storage.s3.region}.amazonaws.com`;
+        const cloudFrontDomain = process.env.AWS_CLOUDFRONT_DOMAIN;
+        const convertedUrl = cloudFrontDomain
+            ? originalUrl.replace(s3Domain, cloudFrontDomain)
+            : originalUrl;
       
         return convertedUrl;
       }
-    async saveFile({ file }, type, name, imageFolderName = 'cofynd-staging/images/latest_images_2024', resize = true, width = 1000, height = 550, brightness = 1, contrast = 1) {
+    async saveFile({ file }, type, name, imageFolderName = 'images', resize = true, width = 1000, height = 550, brightness = 1, contrast = 1) {
         try {
             let uploadedFile = null;
             let path = null;
@@ -95,7 +105,9 @@ class File {
 
     async deleteFile(Key, imageFolderName) {
         try {
-            await AWS.S3Delete({ Key, Bucket: `${storage.s3.path.image}/${imageFolderName}` });
+            const prefix = this._normalizeKeyPrefix(imageFolderName);
+            const objectKey = prefix ? `${prefix}/${Key}` : Key;
+            await AWS.S3Delete({ Key: objectKey, Bucket: storage.s3.bucket });
             // await AWS.S3Delete({ Key, Bucket: `${storage.s3.path.image}/large` });
             // await AWS.S3Delete({ Key, Bucket: `${storage.s3.path.image}/medium` });
             // await AWS.S3Delete({ Key, Bucket: `cofynd-staging/small/images/latest_images_2024`});

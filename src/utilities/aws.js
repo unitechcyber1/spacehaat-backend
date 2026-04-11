@@ -22,11 +22,16 @@ class AWS {
         }
     }
 
-
+    _s3() {
+        return new aws.S3({
+            region: storage.s3.region,
+            signatureVersion: 'v4'
+        });
+    }
 
     async S3Upload(fileParams) {
         try {
-            let s3 = new aws.S3();
+            const s3 = this._s3();
             return await s3.upload(fileParams).promise();
         } catch (e) {
             throw (e)
@@ -36,7 +41,7 @@ class AWS {
 
     async S3Delete(fileParams) {
         try {
-            let s3 = new aws.S3();
+            const s3 = this._s3();
             return s3.deleteObject(fileParams).promise();
         } catch (e) {
             throw (e)

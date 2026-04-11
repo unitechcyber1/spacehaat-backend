@@ -2,7 +2,7 @@
     host: process.env.HOST || '0.0.0.0',
     port: process.env.PORT || '8000',
     // port: process.env.PORT || '6000',
-    name: process.env.NAME || 'cofynd',
+    name: process.env.NAME || 'spacehaat',
     secret: 'ANJPV4070F',
     encryptionKey: process.env.ENCRYPTION_KEY || '-JaNdRgUkXn2r5u8x/A?D(G+KbPeShVmYq3s6v9y$B&E)H@McQfTjWnZr4u7w!z%',
     superSecretForAdmin: process.env.JWT_SECRET_ADMIN || '_QNxOvsAiEWoMnSGuxs66uFDjIRiZSfdmQ',

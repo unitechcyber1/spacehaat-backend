@@ -20,13 +20,35 @@ class FileUpload {
             const { file } = req.files;
             const { type, contrast, brightness } = req.body;
             let name = await this._getName();
-            let fileDetails = await FileUtility.saveFile({ file }, type, name, contrast, brightness);
+            const brightnessNum = brightness != null ? Number(brightness) : 1;
+            const contrastNum = contrast != null ? Number(contrast) : 1;
+            let fileDetails = await FileUtility.saveFile(
+                { file },
+                type,
+                name,
+                'images',
+                true,
+                1000,
+                550,
+                brightnessNum,
+                contrastNum
+            );
             let fileData = null;
             if (type === 'document') {
                 filedata = fileDetails;
             } else {
                 fileDetails = [fileDetails];
-                await FileUtility.saveFile({ file }, type, name, 'cofynd-staging/small/images/latest_images_2024', true, 497, 280);
+                await FileUtility.saveFile(
+                    { file },
+                    type,
+                    name,
+                    'small/images/latest_images_2024',
+                    true,
+                    497,
+                    280,
+                    brightnessNum,
+                    contrastNum
+                );
                 // await FileUtility.saveFile({ file }, type, name, 'medium', true, 1080, 720);
                 // await FileUtility.saveFile({ file }, type, name, 'large', true, 1440, 960);
                 fileData = await Image.insertMany(fileDetails);
