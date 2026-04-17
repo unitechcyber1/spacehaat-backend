@@ -32,11 +32,7 @@ import storage from './config/storage.js'
 import { limiter } from './config/rateLimiter.js';
 import compression from 'compression';
 import models from './models/index.js'
-import manageEnquiryService from './services/admin/manage-enquiry.js'
-import messageService from './utilities/messageService.js';
 const WorkSpace = models['WorkSpace'];
-import cron from 'node-cron'
-import moment from 'moment';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 let server = http.Server(app);
@@ -103,69 +99,6 @@ app.use(function (err, req, res, next) {
         res.end();
     }
 })
-// cron.schedule('0 0 * * *', async () => {
-//     await updateExpiredDates();
-// });
-async function updateExpiredDates() {
-    try {
-        const workspaces = await WorkSpace.find({});
-        for (const workspace of workspaces) {
-            if (workspace.calendar.length > 0) {
-                const updatedCalendar = workspace.calendar.map(entry => {
-                    const currentDate = moment().startOf('day');  // Current date (without time)
-                    const calendarDate = moment(entry.date).startOf('day');  // Entry date (without time)
-                    if (calendarDate.isBefore(currentDate)) {
-                        return {
-                            date: entry.date,  // Ensure date is preserved
-                            status: 'unavailable',
-                            seats: entry.seats
-                        };
-                    }
-                    return entry;
-                });
-                await WorkSpace.findOneAndUpdate(
-                    { _id: workspace._id },
-                    { calendar: updatedCalendar },
-                    { new: true }  // Return the updated document
-                );
-            }
-        }
-        console.log('Expired dates successfully updated.');
-    } catch (error) {
-        console.error('Error updating expired dates:', error);
-    }
-}
-
-// Virtual Office reminders - First reminder (2 days after lead)
-cron.schedule('*/5 11 * * 1-6', async () => {
-    try {
-        await manageEnquiryService.sendVirtualReminders('first');
-    } catch (error) {
-        console.error('Virtual first reminder cron failed:', error);
-    }
-});
-cron.schedule('*/5 16 * * 1-6', async () => {
-    try {
-        await manageEnquiryService.sendVirtualReminders('first');
-    } catch (error) {
-        console.error('Virtual first reminder cron failed:', error);
-    }
-});
-// Virtual Office reminders - Second, Third, Fourth (4, 7, 11 days after lead)
-cron.schedule('*/5 11 * * 1-6', async () => {
-    try {
-        await manageEnquiryService.sendVirtualReminders('second_and_third');
-    } catch (error) {
-        console.error('Virtual second/third/fourth reminder cron failed:', error);
-    }
-});
-cron.schedule('*/5 16 * * 1-6', async () => {
-    try {
-        await manageEnquiryService.sendVirtualReminders('second_and_third');
-    } catch (error) {
-        console.error('Virtual second/third/fourth reminder cron failed:', error);
-    }
-});
 
 
 app.use(fileUpload({

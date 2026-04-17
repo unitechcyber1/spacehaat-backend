@@ -23,6 +23,22 @@ const blackListWS = [
     'the-office-pass-sector-39-gurugram',
 ]
 
+function escapeRegex(string) {
+    return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Returns ObjectId only for a valid 24-char hex id; avoids BSONError on bad query params */
+function parseObjectIdParam(value) {
+    if (value == null || value === '') {
+        return null;
+    }
+    const s = String(value).trim();
+    if (!/^[a-fA-F0-9]{24}$/.test(s)) {
+        return null;
+    }
+    return new ObjectId(s);
+}
+
 const filteredFields = {
     name: 1,
     description: 1,
@@ -126,13 +142,20 @@ class ManageWorkSpaceService {
             if (small_team_availability) condition['small_team_availability'] = small_team_availability;
             if (slug) condition['slug'] = slug;
 
-            if (city) {
-                condition['location.city'] = new ObjectId(city);
+            if (name != null && String(name).trim() !== '') {
+                const term = escapeRegex(String(name).trim());
+                condition.name = { $regex: term, $options: 'i' };
+            }
+
+            const cityId = parseObjectIdParam(city);
+            if (cityId) {
+                condition['location.city'] = cityId;
                 sortBy = manageWorkSpaceService._createDynamicPriorityType('location') + '.order';
             }
 
-            if (micro_location) {
-                condition['location.micro_location'] = new ObjectId(micro_location);
+            const microLocationId = parseObjectIdParam(micro_location);
+            if (microLocationId) {
+                condition['location.micro_location'] = microLocationId;
                 sortBy = manageWorkSpaceService._createDynamicPriorityType('micro_location') + '.order';
             }
 
@@ -142,8 +165,12 @@ class ManageWorkSpaceService {
             }
 
             if (parseLocations && Array.isArray(parseLocations)) {
-                const objectIdLocations = parseLocations.map(id => new ObjectId(id));
-                condition['location.micro_location'] = { '$in': objectIdLocations };
+                const objectIdLocations = parseLocations
+                    .map((id) => parseObjectIdParam(id))
+                    .filter(Boolean);
+                if (objectIdLocations.length > 0) {
+                    condition['location.micro_location'] = { $in: objectIdLocations };
+                }
             }
 
             if (space_type) {
@@ -905,8 +932,12 @@ class ManageWorkSpaceService {
                     };
                 }
                 if (parseLocations && Array.isArray(parseLocations)) {
-                    const objectIdLocations = parseLocations.map(id => new ObjectId(id));
-                    condition['location.micro_location'] = { '$in': objectIdLocations };
+                    const objectIdLocations = parseLocations
+                        .map((id) => parseObjectIdParam(id))
+                        .filter(Boolean);
+                    if (objectIdLocations.length > 0) {
+                        condition['location.micro_location'] = { $in: objectIdLocations };
+                    }
                 }
                 if (minPrice && maxPrice && space_type) {
                     condition['plans'] = {
