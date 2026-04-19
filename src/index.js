@@ -1,8 +1,7 @@
 import './config/loadEnv.js';
 import express from 'express';
-let app = express();
-// Required for Twilio webhook signature validation behind ngrok/reverse proxy
-app.set('trust proxy', 1);
+import cors from 'cors';
+import { buildCorsOptions } from './config/corsOptions.js';
 // import {app as  envapp} from './config/app';
 import database from './config/database.js'
 import logger from './utilities/logger.js';
@@ -11,7 +10,6 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 const PORT = portapp.port;
 import bodyParser from 'body-parser';
-import cors from 'cors';
 import http from 'http';
 import fileUpload from 'express-fileupload';
 import logErrors from './middlewares/logErrors.js';
@@ -33,6 +31,12 @@ import { limiter } from './config/rateLimiter.js';
 import compression from 'compression';
 import models from './models/index.js'
 import OpenAI from "openai";
+
+let app = express();
+// Required for Twilio webhook signature validation behind ngrok/reverse proxy
+app.set('trust proxy', 1);
+app.use(cors(buildCorsOptions()));
+
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
@@ -179,6 +183,7 @@ if (isProd && apiUrl) {
     cspConnectSrc.push(u, u.replace(/^https:/, 'wss:'));
 }
 app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
@@ -187,19 +192,11 @@ app.use(helmet({
         }
     }
 }));
-app.use(cors())
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
 app.use(express.json());
 app.use(limiter)
 
-// use it before all route definitions
-app.use(function (req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS,POST,PUT");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, x-client-key, x-client-token, x-client-secret, Authorization, token");
-    next();
-});
 app.get('/', (req, res) => {
     res.send("Server connected successfully!")
 });
