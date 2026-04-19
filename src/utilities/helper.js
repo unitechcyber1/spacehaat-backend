@@ -1,5 +1,17 @@
-
 import bcrypt from 'bcrypt';
+import app from '../config/app.js';
+
+/** aes256 requires a non-empty string key; dotenv must define ENCRYPTION_KEY=... */
+export function requireEncryptionKey() {
+    const k = app.encryptionKey;
+    if (k == null || String(k).trim() === '') {
+        throw new Error(
+            'ENCRYPTION_KEY is missing or empty. In .env use ENCRYPTION_KEY="your-secret" (equals sign, ' +
+                'quote the value if it contains #, ?, spaces, etc.).'
+        );
+    }
+    return String(k).trim();
+}
 
 // hash password for reg
 export const hashPassword = (password) => {

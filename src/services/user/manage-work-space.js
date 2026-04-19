@@ -5,7 +5,8 @@ import { ObjectId } from 'mongodb';
 import _ from 'lodash';
 import manageWorkSpaceService from '../admin/manage-work-space.js';
 const WorkSpace = models['WorkSpace'];
-const MicroLocation = models['MicroLocation']
+const MicroLocation = models['MicroLocation'];
+const Category = models['Category'];
 
 const blackListWS = [
     'abl-workspaces-dlf-cyber-hub-gurugram',
@@ -331,6 +332,66 @@ class ManageWorkSpaceService {
                     $addFields: {
                         'location.micro_location': {
                             $arrayElemAt: ['$location.micro_location', 0]
+                        }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: Category.collection.collectionName,
+                        let: {
+                            categoryIds: {
+                                $map: {
+                                    input: { $ifNull: ['$plans', []] },
+                                    as: 'p',
+                                    in: '$$p.category'
+                                }
+                            }
+                        },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $in: ['$_id', '$$categoryIds']
+                                    }
+                                }
+                            }
+                        ],
+                        as: 'planCategories'
+                    }
+                },
+                {
+                    $addFields: {
+                        plans: {
+                            $map: {
+                                input: { $ifNull: ['$plans', []] },
+                                as: 'plan',
+                                in: {
+                                    $mergeObjects: [
+                                        '$$plan',
+                                        {
+                                            category: {
+                                                $ifNull: [
+                                                    {
+                                                        $arrayElemAt: [
+                                                            {
+                                                                $filter: {
+                                                                    input: '$planCategories',
+                                                                    as: 'pc',
+                                                                    cond: {
+                                                                        $eq: ['$$pc._id', '$$plan.category']
+                                                                    }
+                                                                }
+                                                            },
+                                                            0
+                                                        ]
+                                                    },
+                                                    '$$plan.category'
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
                         }
                     }
                 },

@@ -1,5 +1,5 @@
 import models from '../../models/index.js';
-import { hashPassword } from '../../utilities/helper.js';
+import { hashPassword, requireEncryptionKey } from '../../utilities/helper.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import app from '../../config/app.js';
@@ -101,7 +101,7 @@ class AdminAuthService {
 
     async createToken(user) {
         try {
-            const encryptedKey = app.encryptionKey;
+            const encryptedKey = requireEncryptionKey();
             const { _id, role } = user;
             let obj = {};
             obj.id = await aes256.encrypt(encryptedKey, _id.toString());

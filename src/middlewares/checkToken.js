@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import app from '../config/app.js';
+import { requireEncryptionKey } from '../utilities/helper.js';
 import aes256 from 'aes256';
 import redis from '../utilities/redis.js';
 import models from '../models/index.js';
@@ -22,7 +23,7 @@ class CheckToken {
                 if (err) {
                     return res.status(401).json({ type: 'Error', message: 'Invalid Token' });
                 } else {
-                    let encryptedKey = app.encryptionKey;
+                    const encryptedKey = requireEncryptionKey();
                     let decryptedId = await aes256.decrypt(encryptedKey, encoded.id);
                     const token = await redis.get(decryptedId);
                     const user = await User.findById(encoded.userId);
@@ -87,7 +88,7 @@ class CheckToken {
                         checkPath === 'getSpacesByCity') { next(); return; }
                     return res.status(401).json({ type: 'Error', message: 'Invalid Token' });
                 } else {
-                    let encryptedKey = app.encryptionKey;
+                    const encryptedKey = requireEncryptionKey();
                     let decryptedId = await aes256.decrypt(encryptedKey, encoded.id);
                     const token = await redis.get(decryptedId);
                     if (!token) {

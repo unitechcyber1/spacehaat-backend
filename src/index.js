@@ -32,6 +32,10 @@ import storage from './config/storage.js'
 import { limiter } from './config/rateLimiter.js';
 import compression from 'compression';
 import models from './models/index.js'
+import OpenAI from "openai";
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
 const WorkSpace = models['WorkSpace'];
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -106,8 +110,66 @@ app.use(fileUpload({
     limits: { fileSize: storage.maxFileSize }
 }));
 
+async function updateDescriptions() {
+    // Only rewrite once per document.
+    // We mark success with `description_ai_updated: true` so reruns won't repeat updates.
+    const space = await WorkSpace.findOne({
+        status: 'approve',
+        description: { $type: 'string', $ne: '' },
+        description_ai_updated: { $ne: true }
+    });
 
+    if (!space) {
+        console.log('[updateDescriptions] No pending workspaces found.');
+        return;
+    }
 
+    try {
+        const prompt = `
+  Rewrite the following coworking space description in a premium, professional, and SEO-optimized way.
+
+Requirements:
+- Keep it natural and human-like
+- Add location-based keywords
+- Highlight amenities and benefits
+- Make it attractive for users looking for coworking space
+- Keep length between 80-100 words
+  
+  ${space.description}
+  `;
+
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: prompt }],
+        });
+
+        const newDescription = response?.choices?.[0]?.message?.content?.trim();
+        if (!newDescription) {
+            throw new Error('OpenAI returned empty description');
+        }
+
+        await WorkSpace.updateOne(
+            { _id: space._id, description_ai_updated: { $ne: true } },
+            {
+                $set: {
+                    description: newDescription,
+                    description_ai_updated: true,
+                    description_ai_updated_at: new Date()
+                }
+            }
+        );
+
+        console.log(`Updated: ${space._id}`);
+
+        // Rate limit safety
+        await new Promise(res => setTimeout(res, 1000));
+
+    } catch (err) {
+        console.error("Error:", err);
+    }
+}
+
+// updateDescriptions();
 // CSP: allow Socket.IO CDN and WebSocket; production uses API_URL / FRONTEND_URL from env
 const isProd = process.env.NODE_ENV === 'production';
 const apiUrl = process.env.API_URL || process.env.SERVER_URL || '';

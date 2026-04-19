@@ -1,5 +1,6 @@
 import models from '../../models/index.js';
 import app from '../../config/app.js';
+import { requireEncryptionKey } from '../../utilities/helper.js';
 import messageService from '../../utilities/messageService.js';
 import redis from '../../utilities/redis.js';
 const User = models['User'];
@@ -93,7 +94,7 @@ class UserAuthService {
 
     async createToken(user) {
         try {
-            const encryptedKey = app.encryptionKey;
+            const encryptedKey = requireEncryptionKey();
             const { _id, role } = user;
             let obj = {};
             obj.id = await aes256.encrypt(encryptedKey, _id.toString());
@@ -111,7 +112,7 @@ class UserAuthService {
 
     async createVendorTokenForRegister(user) {
         try {
-            const encryptedKey = app.encryptionKey;
+            const encryptedKey = requireEncryptionKey();
             const { _id, role, phone_number } = user;
             let obj = {};
             obj.id = await aes256.encrypt(encryptedKey, _id.toString());
@@ -135,7 +136,7 @@ class UserAuthService {
 
     async createVendorToken(user) {
         try {
-            const encryptedKey = app.encryptionKey;
+            const encryptedKey = requireEncryptionKey();
             const { _id, role, phone_number } = user;
             let obj = {};
             obj.id = await aes256.encrypt(encryptedKey, _id.toString());
