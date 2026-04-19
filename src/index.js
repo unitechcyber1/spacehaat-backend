@@ -1,7 +1,6 @@
 import './config/loadEnv.js';
 import express from 'express';
-import cors from 'cors';
-import { buildCorsOptions } from './config/corsOptions.js';
+import { corsMiddleware } from './config/corsOptions.js';
 // import {app as  envapp} from './config/app';
 import database from './config/database.js'
 import logger from './utilities/logger.js';
@@ -35,7 +34,7 @@ import OpenAI from "openai";
 let app = express();
 // Required for Twilio webhook signature validation behind ngrok/reverse proxy
 app.set('trust proxy', 1);
-app.use(cors(buildCorsOptions()));
+app.use(corsMiddleware());
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -174,24 +173,14 @@ Requirements:
 }
 
 // updateDescriptions();
-// CSP: allow Socket.IO CDN and WebSocket; production uses API_URL / FRONTEND_URL from env
-const isProd = process.env.NODE_ENV === 'production';
-const apiUrl = process.env.API_URL || process.env.SERVER_URL || '';
-const cspConnectSrc = ["'self'", "ws://localhost:*", "http://localhost:*", "wss://localhost:*"];
-if (isProd && apiUrl) {
-    const u = apiUrl.replace(/^http:\/\//, 'https://').replace(/\/$/, '');
-    cspConnectSrc.push(u, u.replace(/^https:/, 'wss:'));
-}
-app.use(helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "https://cdn.socket.io"],
-            connectSrc: cspConnectSrc
-        }
-    }
-}));
+app.use(
+    helmet({
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+        crossOriginEmbedderPolicy: false,
+        // JSON API — CSP is for HTML; disabling avoids odd interactions with proxies/CDNs
+        contentSecurityPolicy: false
+    })
+);
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
 app.use(express.json());
