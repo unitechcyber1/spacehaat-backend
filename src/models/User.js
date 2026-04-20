@@ -42,8 +42,8 @@ const UserSchema = new Schema({
     }],
     login_type: {
         type: String,
-        enum: ['cofynd', 'google', 'facebook'],
-        default: 'cofynd'
+        enum: ['spacehaat', 'google', 'facebook'],
+        default: 'spacehaat'
     },
     access: [{ type: String }],
     lead_source: [{ type: String }],

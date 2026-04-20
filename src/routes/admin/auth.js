@@ -4,7 +4,7 @@ import AdminAuthController from '../../controllers/admin/auth.js';
 
 // create login routes
 router
-    .post('/createAdmin', AdminAuthController.createAdmin)
+    // .post('/createAdmin', AdminAuthController.createAdmin)
     .post('/login', AdminAuthController.login)
     .get('/logout', AdminAuthController.logout)
     .get('/userList', AdminAuthController.userList)

@@ -1,6 +1,9 @@
 import './config/loadEnv.js';
 import express from 'express';
-import { corsMiddleware } from './config/corsOptions.js';
+let app = express();
+// Required for Twilio webhook signature validation behind ngrok/reverse proxy
+app.set('trust proxy', 1);
+import cors from 'cors';
 // import {app as  envapp} from './config/app';
 import database from './config/database.js'
 import logger from './utilities/logger.js';
@@ -28,10 +31,6 @@ import { initSocket } from './utilities/socket.js'
 import storage from './config/storage.js'
 import { limiter } from './config/rateLimiter.js';
 import compression from 'compression';
-let app = express();
-// Required for Twilio webhook signature validation behind ngrok/reverse proxy
-app.set('trust proxy', 1);
-app.use(corsMiddleware());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 let server = http.Server(app);
@@ -104,6 +103,14 @@ app.use(fileUpload({
     debug: true,
     limits: { fileSize: storage.maxFileSize }
 }));
+// CSP: allow Socket.IO CDN and WebSocket; production uses API_URL / FRONTEND_URL from env
+const isProd = process.env.NODE_ENV === 'production';
+const apiUrl = process.env.API_URL || process.env.SERVER_URL || '';
+const cspConnectSrc = ["'self'", "ws://localhost:*", "http://localhost:*", "wss://localhost:*"];
+if (isProd && apiUrl) {
+    const u = apiUrl.replace(/^http:\/\//, 'https://').replace(/\/$/, '');
+    cspConnectSrc.push(u, u.replace(/^https:/, 'wss:'));
+}
 app.use(
     helmet({
         crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -112,10 +119,19 @@ app.use(
         contentSecurityPolicy: false
     })
 );
+app.use(cors())
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
 app.use(express.json());
 app.use(limiter)
+
+// use it before all route definitions
+app.use(function (req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS,POST,PUT");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, x-client-key, x-client-token, x-client-secret, Authorization, token");
+    next();
+});
 
 app.get('/', (req, res) => {
     res.send("Server connected successfully!")
