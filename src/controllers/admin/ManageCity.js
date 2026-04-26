@@ -117,10 +117,14 @@ class ManageCity {
 
     async getCityByCountryOnly(req, res, next) {
         try {
-            const cities = await manageCityServices.getCityByCountry(req.params);
+            const result = await manageCityServices.getCityByCountry({
+                ...req.params,
+                ...req.query
+            });
             return res.status(200).json({
                 message: "cities by state",
-                data: cities
+                data: result.cities,
+                totalRecords: result.count
             })
         } catch (error) {
             next(error)

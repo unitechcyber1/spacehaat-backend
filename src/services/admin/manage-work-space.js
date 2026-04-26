@@ -23,6 +23,37 @@ const OfficeSpace = models['OfficeSpace'];
 const MicroLocation = models['MicroLocation'];
 const Country = models['Country'];
 
+/** Keys on WorkSpace.location that are ObjectId refs; empty string from the client must not be saved */
+const LOCATION_OBJECTID_KEYS = ['country', 'state', 'city', 'micro_location'];
+
+function isValidObjectIdString(value) {
+    if (value == null || typeof value !== 'string') {
+        return false;
+    }
+    return /^[a-fA-F0-9]{24}$/.test(value.trim());
+}
+
+/**
+ * Mutates `location` in place: removes `""` / null / invalid 24-hex for ObjectId ref fields
+ * so Mongoose does not try to cast "" to ObjectId.
+ * @param {object | undefined} location
+ */
+function sanitizeWorkSpaceLocationInPlace(location) {
+    if (!location || typeof location !== 'object') {
+        return;
+    }
+    for (const key of LOCATION_OBJECTID_KEYS) {
+        const val = location[key];
+        if (val === '' || val == null) {
+            delete location[key];
+            continue;
+        }
+        if (typeof val === 'string' && !isValidObjectIdString(val)) {
+            delete location[key];
+        }
+    }
+}
+
 class ManageWorkSpaceService {
     constructor() {
         this.axiosConfig = {
@@ -404,6 +435,7 @@ class ManageWorkSpaceService {
         calendar,
     }) {
         try {
+            sanitizeWorkSpaceLocationInPlace(location);
             var expiryDate = new Date();
             var geometry;
             let finalSlug;
@@ -736,6 +768,7 @@ class ManageWorkSpaceService {
         planStatus
     }) {
         try {
+            sanitizeWorkSpaceLocationInPlace(location);
             const geometry = this._setGeoLocation(location);
             const slug = await this._createSlug(id, name, location.name);
             const countryInfo = findCountryByCoordinate(+location.latitude, +location.longitude);

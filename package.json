@@ -1,5 +1,5 @@
 {
-  "name": "COFYND-DEV",
+  "name": "Spacehaat-dev",
   "version": "1.0.0",
   "description": "Car Rental Project On Subscription basis",
   "main": "index.js",
@@ -49,6 +49,7 @@
     "express-validator": "^7.0.1",
     "express-winston": "^4.2.0",
     "file-type": "^18.7.0",
+    "firebase-admin": "^13.8.0",
     "google-locations": "^0.2.0",
     "googleapis": "^128.0.0",
     "helmet": "^7.1.0",

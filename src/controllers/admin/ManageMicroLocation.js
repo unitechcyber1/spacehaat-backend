@@ -88,10 +88,14 @@ class ManageMicroLocation {
 
     async getMicroLocationByCity(req, res, next) {
         try {
-            const microLocations = await manageMicroLocationService.getMicroLocationByCity(req.params);
+            const result = await manageMicroLocationService.getMicroLocationByCity({
+                ...req.params,
+                ...req.query
+            });
             return res.status(200).json({
                 message: "Micro Locations by city",
-                data: microLocations
+                data: result.microLocations,
+                totalRecords: result.count
             })
         } catch (e) {
             next(e)
