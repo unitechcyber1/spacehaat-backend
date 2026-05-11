@@ -1,5 +1,5 @@
 {
-  "name": "COFYND-DEV",
+  "name": "Spacehaat-dev",
   "version": "1.0.0",
   "description": "Car Rental Project On Subscription basis",
   "main": "index.js",
@@ -49,6 +49,7 @@
     "express-validator": "^7.0.1",
     "express-winston": "^4.2.0",
     "file-type": "^18.7.0",
+    "firebase-admin": "^13.8.0",
     "google-locations": "^0.2.0",
     "googleapis": "^128.0.0",
     "helmet": "^7.1.0",
@@ -67,6 +68,7 @@
     "multer-s3": "^3.0.1",
     "node-cron": "^3.0.3",
     "nodemon": "^3.0.1",
+    "openai": "^4.104.0",
     "passport-jwt": "^4.0.1",
     "path": "^0.12.7",
     "proxy-agent": "^6.3.1",
@@ -77,6 +79,7 @@
     "sanitize-html": "^2.11.0",
     "sharp": "^0.32.6",
     "socket.io": "^4.7.2",
+    "stream-json": "^2.1.0",
     "twilio": "^5.4.2",
     "xlsx": "^0.18.5"
   },

@@ -1,7 +1,16 @@
 import models from '../../models/index.js';
 import _ from 'lodash';
 const MicroLocation = models['MicroLocation'];
+const City = models['City'];
 
+function escapeRegex(string) {
+    return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function parsePositiveInt(value, fallback) {
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 class ManageMicroLocationService {
     constructor() {
@@ -148,10 +157,51 @@ class ManageMicroLocationService {
         }
     }
 
-    async getMicroLocationByCity({ cityId }) {
+    async getMicroLocationByCity({ cityId, cityName, name, limit = 10, page = 1, skip, orderBy = 1, sortBy = 'name' }) {
         try {
-            const microLocations = await MicroLocation.find({ city: cityId });
-            return microLocations;
+            const condition = {};
+
+            if (cityName && String(cityName).trim()) {
+                const cityIds = await City.find(
+                    { name: { $regex: escapeRegex(String(cityName).trim()), $options: 'i' } },
+                    { _id: 1 }
+                ).lean();
+
+                if (!cityIds.length) {
+                    return { microLocations: [], count: 0 };
+                }
+
+                condition.city = { $in: cityIds.map((city) => city._id) };
+            } else if (cityId && cityId !== 'all') {
+                condition.city = cityId;
+            }
+
+            if (name && String(name).trim()) {
+                condition.name = { $regex: escapeRegex(String(name).trim()), $options: 'i' };
+            }
+
+            const limitNumber = parsePositiveInt(limit, 10);
+            const pageNumber = parsePositiveInt(page, 1);
+            const skipNumber = skip !== undefined
+                ? Math.max(parseInt(skip, 10) || 0, 0)
+                : (pageNumber - 1) * limitNumber;
+            const orderNumber = parseInt(orderBy, 10) === -1 ? -1 : 1;
+
+            const [microLocations, count] = await Promise.all([
+                MicroLocation.find(condition)
+                    .populate('city')
+                    .populate('locationImage.coworking')
+                    .populate('locationImage.coliving')
+                    .populate('locationImage.officespace')
+                    .populate('locationImage.buildings')
+                    .populate('locationImage.virtualoffice')
+                    .sort({ [sortBy]: orderNumber })
+                    .skip(skipNumber)
+                    .limit(limitNumber),
+                MicroLocation.countDocuments(condition)
+            ]);
+
+            return { microLocations, count };
         } catch (error) {
             throw (error);
         }

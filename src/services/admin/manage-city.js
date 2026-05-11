@@ -7,6 +7,14 @@ const FeaturedSpace = models['FeaturedSpace'];
 const AdsImage = models['AdsImage'];
 const WorkSpace = models['WorkSpace'];
 
+function escapeRegex(string) {
+    return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function parsePositiveInt(value, fallback) {
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 class ManageCityService {
     constructor() {
@@ -149,11 +157,23 @@ class ManageCityService {
         }
     }
 
-    async getCityByCountry({ countryId }) {
+    async getCityByCountry({ countryId, limit = 10, page = 1, skip, name }) {
         try {
-            let city_id = []
-            const Countrys = await Country.find({ _id: countryId }, { name: 1 });
-            const city = await City.find({ country: countryId })
+            const condition = { country: countryId };
+
+            if (name && String(name).trim()) {
+                condition.name = { $regex: escapeRegex(String(name).trim()), $options: 'i' };
+            }
+
+            const limitNumber = parsePositiveInt(limit, 10);
+            const pageNumber = parsePositiveInt(page, 1);
+            const skipNumber = skip !== undefined
+                ? Math.max(parseInt(skip, 10) || 0, 0)
+                : (pageNumber - 1) * limitNumber;
+
+            const [country, city, count] = await Promise.all([
+                Country.findById(countryId, { name: 1 }).lean(),
+                City.find(condition)
                 .populate('image')
                 .populate('icons')
                 .populate('cityImage.coworking')
@@ -161,36 +181,45 @@ class ManageCityService {
                 .populate('cityImage.officespace')
                 .populate('cityImage.buildings')
                 .populate('cityImage.virtualoffice')
-            for (let index = 0; index < city.length; index++) {
-                var micro_loc = []
-                const microLocation = await MicroLocation.find({ city: city[index]._id }, { name: 1, _id: 0 });
-                for (let i = 0; i < microLocation.length; i++) {
-                    micro_loc.push(microLocation[i].name)
+                    .sort({ name: 1 })
+                    .skip(skipNumber)
+                    .limit(limitNumber)
+                    .lean(),
+                City.countDocuments(condition)
+            ]);
+
+            const cityIds = city.map((item) => item._id);
+            const locationsByCity = await MicroLocation.aggregate([
+                { $match: { city: { $in: cityIds } } },
+                { $sort: { name: 1 } },
+                {
+                    $group: {
+                        _id: '$city',
+                        locations: { $push: '$name' }
+                    }
                 }
-                city_id.push({
-                    "id": city[index]._id,
-                    'icon': city[index].icons,
-                    'image': city[index].image,
-                    "name": city[index].name,
-                    "for_coWorking": city[index].for_coWorking,
-                    "for_office": city[index].for_office,
-                    "for_coLiving": city[index].for_coLiving,
-                    "for_flatspace": city[index].for_flatspace,
-                    "for_virtual": city[index].for_virtual,
-                    "locations": micro_loc,
-                    "Country": Countrys[0],
-                })
-            }
-            city_id = city_id.sort(function(a, b) {
-                if (a.name.trim() < b.name.trim()) {
-                    return -1;
-                }
-                if (a.name.trim() > b.name.trim()) {
-                    return 1;
-                }
-                return 0;
-            });
-            return city;
+            ]);
+
+            const locationMap = new Map(
+                locationsByCity.map((item) => [String(item._id), item.locations])
+            );
+
+            const cities = city.map((item) => ({
+                id: item._id,
+                icon: item.icons,
+                image: item.image,
+                name: item.name,
+                for_coWorking: item.for_coWorking,
+                for_office: item.for_office,
+                for_coLiving: item.for_coLiving,
+                for_flatspace: item.for_flatspace,
+                for_virtual: item.for_virtual,
+                locations: locationMap.get(String(item._id)) || [],
+                Country: country,
+                cityImage: item.cityImage
+            }));
+
+            return { cities, count };
         } catch (error) {
             throw (error);
         }

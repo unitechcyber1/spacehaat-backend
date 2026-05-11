@@ -328,6 +328,9 @@ class ManageOfficeSpaceService {
         slug
     }) {
         try {
+            const { ids: amentiesIds, namesForTemplate: amentiesNamesForMail }
+                = this._normalizeOfficeAmenties(amenties);
+
             var expiryDate = new Date();
             expiryDate.setMonth(expiryDate.getMonth() + 3);
             let expireAt = expiryDate;
@@ -343,11 +346,11 @@ class ManageOfficeSpaceService {
                 //space details to official mailId...
                 const userDetails = await User.findOne({ _id: user });
                 let amentiesDetails;
-                let amenties_names = [];
-                for (const key in amenties) {
-                    amenties_names.push(amenties[key]['name']);
-                    amentiesDetails = amenties_names.join(', ')
+                const amenties_names = [];
+                for (const label of amentiesNamesForMail) {
+                    amenties_names.push(label);
                 }
+                amentiesDetails = amenties_names.filter(Boolean).join(', ');
                 let spaceAddress = location.address;
                 let available_space = other_detail.area_for_lease_in_sq_ft;
                 let expected_monthly_rent = other_detail.rent_in_sq_ft;
@@ -418,7 +421,7 @@ class ManageOfficeSpaceService {
                 spaceTag,
                 building,
                 images,
-                amenties,
+                amenties: amentiesIds,
                 contact_details,
                 other_detail,
                 social_media,
@@ -581,6 +584,10 @@ class ManageOfficeSpaceService {
     }) {
         try {
             const geometry = this._setGeoLocation(location);
+            let amentiesToSet = amenties;
+            if (amenties !== undefined) {
+                amentiesToSet = this._normalizeOfficeAmenties(amenties).ids;
+            }
             // const slug = await this._createSlug(id, name, location.name)
             return await OfficeSpace.findOneAndUpdate({ _id: id }, {
                 name,
@@ -591,7 +598,7 @@ class ManageOfficeSpaceService {
                 builder,
                 building,
                 images,
-                amenties,
+                amenties: amentiesToSet,
                 contact_details,
                 other_detail,
                 social_media,
@@ -669,6 +676,85 @@ class ManageOfficeSpaceService {
         } catch (e) {
             throw (e)
         }
+    }
+
+    /**
+     * Coerce request `amenties` into ObjectId strings for storage. Accepts real arrays,
+     * JSON strings, single-element arrays wrapping a stringified list, and JS-like
+     * `[{ id: '...', name: '...' }]` text that some clients send.
+     */
+    _normalizeOfficeAmenties(raw) {
+        const oidPattern = /^[a-fA-F\d]{24}$/;
+        const ids = [];
+        const namesForTemplate = [];
+
+        const pushPair = (id, name = '') => {
+            const sid = String(id).trim();
+            if (!oidPattern.test(sid)) return;
+            if (!ids.includes(sid)) {
+                ids.push(sid);
+                namesForTemplate.push(name != null ? String(name) : '');
+            }
+        };
+
+        const parseJsLikeIdNamePairs = (str) => {
+            const re = /\{\s*id:\s*['"]([a-fA-F\d]{24})['"]\s*,\s*name:\s*['"]([^'"]*)['"]/g;
+            let m;
+            let found = false;
+            while ((m = re.exec(str)) !== null) {
+                found = true;
+                pushPair(m[1], m[2]);
+            }
+            return found;
+        };
+
+        const walk = (val) => {
+            if (val == null || val === '') return;
+            if (typeof val === 'string') {
+                const t = val.trim();
+                if (!t) return;
+                if (oidPattern.test(t)) {
+                    pushPair(t, '');
+                    return;
+                }
+                let parsed;
+                try {
+                    parsed = JSON.parse(t);
+                } catch {
+                    parsed = undefined;
+                }
+                if (parsed !== undefined) {
+                    walk(parsed);
+                    return;
+                }
+                if (parseJsLikeIdNamePairs(t)) return;
+                const loose = t.match(/\b[a-fA-F\d]{24}\b/g) || [];
+                [...new Set(loose)].forEach((id) => pushPair(id, ''));
+                return;
+            }
+            if (Array.isArray(val)) {
+                if (val.length === 1 && typeof val[0] === 'string') {
+                    const inner = val[0].trim();
+                    if (inner.startsWith('[')) {
+                        walk(inner);
+                        return;
+                    }
+                }
+                for (const el of val) {
+                    walk(el);
+                }
+                return;
+            }
+            if (typeof val === 'object') {
+                const idVal = val._id ?? val.id;
+                if (idVal != null) {
+                    pushPair(idVal, val.name ?? val.label ?? '');
+                }
+            }
+        };
+
+        walk(raw);
+        return { ids, namesForTemplate };
     }
 
     /** default lat long is used of Cyber Park Sector 67, Gurugram, Haryana 122005 */

@@ -87,7 +87,7 @@ class File {
                 convertedUrl = this.convertS3ToCloudFront(uploadedFile.Location);
             }
             return {
-                name: `${name}.${ext}`,
+                name: type === 'document' ? `${name}.${ext}` : `${name}.webp`,
                 real_name: realName,
                 path_local: type === 'document' ? `${path}/${uploadedFile}` : '',
                 s3_link: uploadedFile ? convertedUrl : '',
@@ -153,7 +153,7 @@ class File {
                 fit: 'inside', // Maintain aspect ratio, fit the resized image within the specified dimensions
                 withoutEnlargement: true // Do not enlarge the image if smaller than the specified dimensions
             })
-            .jpeg({ quality: 80 }) // You can adjust quality settings as needed
+            .webp({ quality: 80 })
             .toBuffer();
         } catch (e) {
           throw e;

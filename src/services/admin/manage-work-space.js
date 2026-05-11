@@ -23,6 +23,37 @@ const OfficeSpace = models['OfficeSpace'];
 const MicroLocation = models['MicroLocation'];
 const Country = models['Country'];
 
+/** Keys on WorkSpace.location that are ObjectId refs; empty string from the client must not be saved */
+const LOCATION_OBJECTID_KEYS = ['country', 'state', 'city', 'micro_location'];
+
+function isValidObjectIdString(value) {
+    if (value == null || typeof value !== 'string') {
+        return false;
+    }
+    return /^[a-fA-F0-9]{24}$/.test(value.trim());
+}
+
+/**
+ * Mutates `location` in place: removes `""` / null / invalid 24-hex for ObjectId ref fields
+ * so Mongoose does not try to cast "" to ObjectId.
+ * @param {object | undefined} location
+ */
+function sanitizeWorkSpaceLocationInPlace(location) {
+    if (!location || typeof location !== 'object') {
+        return;
+    }
+    for (const key of LOCATION_OBJECTID_KEYS) {
+        const val = location[key];
+        if (val === '' || val == null) {
+            delete location[key];
+            continue;
+        }
+        if (typeof val === 'string' && !isValidObjectIdString(val)) {
+            delete location[key];
+        }
+    }
+}
+
 class ManageWorkSpaceService {
     constructor() {
         this.axiosConfig = {
@@ -106,8 +137,7 @@ class ManageWorkSpaceService {
                 condition['name'] = { '$regex': `^(\s+${name}|^${name})`, '$options': 'i' };
             }
             if (productId) {
-                productId = productId.replace(/[^A-Za-z0-9 ]/g, "");
-                condition['productId'] = { '$regex': `^(\s+${productId}|^${productId})`, '$options': 'i' };
+                // productId removed from WorkSpace collection; ignore filter for backward compatibility
             }
             if (city) {
                 condition['location.city'] = city;
@@ -204,8 +234,7 @@ class ManageWorkSpaceService {
                 condition['name'] = { '$regex': `^(\s+${name}|^${name})`, '$options': 'i' };
             }
             if (productId) {
-                productId = productId.replace(/[^A-Za-z0-9 ]/g, "");
-                condition['productId'] = { '$regex': `^(\s+${productId}|^${productId})`, '$options': 'i' };
+                // productId removed from WorkSpace collection; ignore filter for backward compatibility
             }
             if (city) {
                 condition['location.city'] = city;
@@ -404,6 +433,7 @@ class ManageWorkSpaceService {
         calendar,
     }) {
         try {
+            sanitizeWorkSpaceLocationInPlace(location);
             var expiryDate = new Date();
             var geometry;
             let finalSlug;
@@ -414,7 +444,6 @@ class ManageWorkSpaceService {
             let year = d.getFullYear();
             let totalCount = await WorkSpace.countDocuments();
             let finalCount = totalCount + 1;
-            let productId = `CFCW${year}${this.pad(finalCount)}`
             if (location && location.latitude && location.longitude) {
                 const countryInfo = findCountryByCoordinate(+location.latitude, +location.longitude);
                 let country_name = countryInfo.name;
@@ -547,7 +576,6 @@ class ManageWorkSpaceService {
                 virtualSeo,
                 user,
                 expireAt,
-                productId,
                 added_by_user,
                 space_type_key,
                 calendar,
@@ -736,6 +764,7 @@ class ManageWorkSpaceService {
         planStatus
     }) {
         try {
+            sanitizeWorkSpaceLocationInPlace(location);
             const geometry = this._setGeoLocation(location);
             const slug = await this._createSlug(id, name, location.name);
             const countryInfo = findCountryByCoordinate(+location.latitude, +location.longitude);
