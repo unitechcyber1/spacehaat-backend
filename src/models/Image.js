@@ -10,6 +10,14 @@ const ImageSchema = new Schema({
         width: Number,
         s3_link: String,
         folder_name: String,
+
+        /** Used by `process-images-watermark-vision.js` */
+        watermark_detected: Boolean,
+        watermark_detection_checked_at: Date,
+        watermark_detection_provider: String,
+        watermark_removed: Boolean,
+        watermark_pipeline_completed: Boolean,
+
         title: String,
         title1: String,
         brightness: Number,
@@ -18,5 +26,9 @@ const ImageSchema = new Schema({
     mongoSchemaOptions
 );
 
+ImageSchema.index({ s3_link: 1 });
+ImageSchema.index({ watermark_pipeline_completed: 1 });
+ImageSchema.index({ watermark_detection_checked_at: 1 });
+ImageSchema.index({ watermark_detected: 1 });
 
 export default ImageSchema;

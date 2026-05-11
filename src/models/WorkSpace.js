@@ -450,7 +450,6 @@ const WorkSpaceSchema = new Schema({
     },
     createdAt: { type: Date, default: Date.now },
     expireAt: { type: Date, default: Date.now },
-    productId: { type: String, default: '' },
     small_team_availability: { type: Boolean, default: false },
     enterprise_availability: { type: Boolean, default: false },
     added_by_user: {

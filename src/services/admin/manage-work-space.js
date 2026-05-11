@@ -137,8 +137,7 @@ class ManageWorkSpaceService {
                 condition['name'] = { '$regex': `^(\s+${name}|^${name})`, '$options': 'i' };
             }
             if (productId) {
-                productId = productId.replace(/[^A-Za-z0-9 ]/g, "");
-                condition['productId'] = { '$regex': `^(\s+${productId}|^${productId})`, '$options': 'i' };
+                // productId removed from WorkSpace collection; ignore filter for backward compatibility
             }
             if (city) {
                 condition['location.city'] = city;
@@ -235,8 +234,7 @@ class ManageWorkSpaceService {
                 condition['name'] = { '$regex': `^(\s+${name}|^${name})`, '$options': 'i' };
             }
             if (productId) {
-                productId = productId.replace(/[^A-Za-z0-9 ]/g, "");
-                condition['productId'] = { '$regex': `^(\s+${productId}|^${productId})`, '$options': 'i' };
+                // productId removed from WorkSpace collection; ignore filter for backward compatibility
             }
             if (city) {
                 condition['location.city'] = city;
@@ -446,7 +444,6 @@ class ManageWorkSpaceService {
             let year = d.getFullYear();
             let totalCount = await WorkSpace.countDocuments();
             let finalCount = totalCount + 1;
-            let productId = `CFCW${year}${this.pad(finalCount)}`
             if (location && location.latitude && location.longitude) {
                 const countryInfo = findCountryByCoordinate(+location.latitude, +location.longitude);
                 let country_name = countryInfo.name;
@@ -579,7 +576,6 @@ class ManageWorkSpaceService {
                 virtualSeo,
                 user,
                 expireAt,
-                productId,
                 added_by_user,
                 space_type_key,
                 calendar,
