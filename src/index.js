@@ -3,7 +3,7 @@ import express from 'express';
 let app = express();
 // Required for Twilio webhook signature validation behind ngrok/reverse proxy
 app.set('trust proxy', 1);
-import cors from 'cors';
+import { corsMiddleware } from './config/corsOptions.js';
 // import {app as  envapp} from './config/app';
 import database from './config/database.js'
 import logger from './utilities/logger.js';
@@ -18,6 +18,7 @@ import logErrors from './middlewares/logErrors.js';
 import { clientErrorHandler } from './middlewares/clientErrorHandler.js';
 import CheckToken from './middlewares/checkToken.js';
 import Sanatize from './middlewares/sanatize.js';
+import verifyPublicApiClient from './middlewares/verifyPublicApiClient.js';
 import path from 'path';
 import queue from './utilities/queue.js';
 import redis from './utilities/redis.js';
@@ -115,6 +116,8 @@ if (isProd && apiUrl) {
     const u = apiUrl.replace(/^http:\/\//, 'https://').replace(/\/$/, '');
     cspConnectSrc.push(u, u.replace(/^https:/, 'wss:'));
 }
+app.use(corsMiddleware());
+
 app.use(
     helmet({
         crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -123,19 +126,10 @@ app.use(
         contentSecurityPolicy: false
     })
 );
-app.use(cors())
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }));
 app.use(express.json());
-app.use(limiter)
-
-// use it before all route definitions
-app.use(function (req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS,POST,PUT");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, x-client-key, x-client-token, x-client-secret, Authorization, token");
-    next();
-});
+app.use(limiter);
 
 app.get('/', (req, res) => {
     res.send("Server connected successfully!")
@@ -178,7 +172,7 @@ app.get('/health', async (req, res) => {
 app.use('/img', express.static(path.join(__dirname.split('\src')[0], 'files/images')));
 // CheckToken.jwtVerify , checkPermissions,  
 app.use('/api/admin', CheckToken.jwtAdminVerify, Sanatize, adminRoutes);
-app.use('/api/user', Sanatize, userRoutes);
+app.use('/api/user', verifyPublicApiClient, Sanatize, userRoutes);
 // Public Twilio webhook (validated via Twilio signature)
 app.use('/api/twilio', CheckToken.jwtAdminVerify, Sanatize, whatsappRoutes);
 // Authenticated outbound WhatsApp send endpoint
