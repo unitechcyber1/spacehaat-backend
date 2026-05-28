@@ -68,16 +68,6 @@ const SubscriptionDetailsSchema = new Schema(
     { _id: true }
 );
 
-const PropertyMediaSchema = new Schema(
-    {
-        mediaType: { type: String, enum: ['Image', 'Video', 'Other'], default: 'Image' },
-        mediaTitle: String,
-        mediaUrl: String,
-        default: { type: Boolean, default: false }
-    },
-    { _id: true }
-);
-
 const LaundryServiceSchema = new Schema(
     {
         title: String,
@@ -118,6 +108,7 @@ const PgRatingSchema = new Schema(
 const PGSchema = new Schema(
     {
         pg_id: { type: String, index: true },
+        slug: { type: String, index: true, trim: true },
         userId: { type: Schema.Types.ObjectId, ref: 'User' },
         name: { type: String, required: true, trim: true },
         contactNumber: String,
@@ -186,14 +177,17 @@ const PGSchema = new Schema(
         form_status: String,
         verified: { type: Boolean, default: false },
         views: { type: Number, default: 0 },
-        status: { type: String, default: 'Active' },
+        status: {
+            type: String,
+            enum: ['pending', 'approve', 'reject', 'inprogress', 'Active'],
+            default: 'inprogress',
+        },
         active: { type: Boolean, default: true },
         adminApproved: { type: Boolean, default: false },
         adminApprovalDate: Date,
 
         delete: { type: Boolean, default: false },
 
-        propertyMedia: { type: [PropertyMediaSchema], default: [] },
         pgRooms: { type: [PgRoomSchema], default: [] },
 
         minMonthlyRent: Number,
@@ -210,17 +204,28 @@ const PGSchema = new Schema(
 // If it looks like latitude first (|lat| < 45) and longitude second (|lng| > 45), swap.
 PGSchema.pre('validate', function normalizeLocation(next) {
     try {
-        const coords = this?.location?.coordinates;
-        if (Array.isArray(coords) && coords.length === 2) {
-            const a = Number(coords[0]);
-            const b = Number(coords[1]);
-            if (Number.isFinite(a) && Number.isFinite(b)) {
-                const latFirstLikely = Math.abs(a) <= 45 && Math.abs(b) > 45;
-                if (latFirstLikely) {
-                    this.location.coordinates = [b, a];
-                }
-            }
+        const loc = this?.location;
+        if (!loc || typeof loc !== 'object') {
+            if (loc !== undefined) this.set('location', undefined);
+            return next();
         }
+        const coords = loc.coordinates;
+        const valid =
+            Array.isArray(coords) &&
+            coords.length === 2 &&
+            Number.isFinite(Number(coords[0])) &&
+            Number.isFinite(Number(coords[1]));
+        if (!valid) {
+            this.set('location', undefined);
+            return next();
+        }
+        const a = Number(coords[0]);
+        const b = Number(coords[1]);
+        const latFirstLikely = Math.abs(a) <= 45 && Math.abs(b) > 45;
+        this.location = {
+            type: 'Point',
+            coordinates: latFirstLikely ? [b, a] : [a, b],
+        };
         next();
     } catch (e) {
         next(e);

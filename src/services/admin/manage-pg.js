@@ -2,6 +2,10 @@ import mongoose from 'mongoose';
 import vm from 'node:vm';
 
 import models from '../../models/index.js';
+import { ensureVendorUserForPgOwner } from '../../utilities/pg-owner-user-sync.js';
+import { resolveUserIdForPgFields } from '../../utilities/pg-userid-from-owner-sync.js';
+import { allocateNextPgId } from '../../utilities/pg-id-format.js';
+import { allocateUniquePgSlug, slugifyText } from '../../utilities/pg-slug.js';
 
 const PG = models.PG;
 
@@ -121,6 +125,31 @@ function stripInternalFields(body) {
     if (!body || typeof body !== 'object') return;
     delete body._id;
     delete body.__v;
+}
+
+/**
+ * MongoDB 2dsphere requires Point + coordinates [lng, lat].
+ * Drop `location` when coordinates are missing or invalid (avoids error 16755).
+ */
+function sanitizeLocationInPlace(payload) {
+    if (!payload?.location || typeof payload.location !== 'object') {
+        if (payload && 'location' in payload) delete payload.location;
+        return;
+    }
+    const coords = payload.location.coordinates;
+    const valid =
+        Array.isArray(coords) &&
+        coords.length === 2 &&
+        Number.isFinite(Number(coords[0])) &&
+        Number.isFinite(Number(coords[1]));
+    if (!valid) {
+        delete payload.location;
+        return;
+    }
+    payload.location = {
+        type: 'Point',
+        coordinates: [Number(coords[0]), Number(coords[1])],
+    };
 }
 
 /**
@@ -244,6 +273,7 @@ async function resolveOwnerEntryToObjectId(entry) {
             active: true,
             delete: false,
         });
+        await ensureVendorUserForPgOwner(doc.toObject ? doc.toObject() : doc);
         return doc._id;
     }
 
@@ -251,6 +281,7 @@ async function resolveOwnerEntryToObjectId(entry) {
     if (email) doc.email = email;
     if (phone) doc.phone = phone;
     await doc.save();
+    await ensureVendorUserForPgOwner(doc.toObject ? doc.toObject() : doc);
     return doc._id;
 }
 
@@ -412,11 +443,41 @@ class ManagePgService {
                 delete payload.locationIds;
             }
         }
+        sanitizeLocationInPlace(payload);
         payload.delete = false;
 
         if (Object.prototype.hasOwnProperty.call(payload, 'owner')) {
             payload.owner = await normalizeOwnersForSave(payload.owner);
         }
+        const ownerUserId = await resolveUserIdForPgFields({
+            owner: payload.owner,
+            userId: payload.userId,
+            contactNumber: payload.contactNumber,
+            contactEmail: payload.contactEmail,
+        });
+        if (ownerUserId) payload.userId = ownerUserId;
+
+        if (!payload.pg_id || !String(payload.pg_id).trim()) {
+            payload.pg_id = await allocateNextPgId(PG, {
+                city: payload.city,
+                name: payload.name,
+            });
+        }
+        payload.status = payload.status || 'inprogress';
+        payload.adminApproved = false;
+
+        const customSlug = payload.slug && String(payload.slug).trim()
+            ? slugifyText(payload.slug)
+            : null;
+        payload.slug = await allocateUniquePgSlug(
+            PG,
+            {
+                name: payload.name,
+                locality: payload.locality,
+                city: payload.city,
+            },
+            { baseSlug: customSlug || undefined },
+        );
 
         const created = await PG.create(payload);
         const createdDoc = await PG.findById(created._id)
@@ -441,9 +502,49 @@ class ManagePgService {
         if (rest.locationIds) {
             sanitizeLocationIdsInPlace(rest.locationIds);
         }
+        if (Object.prototype.hasOwnProperty.call(rest, 'location')) {
+            sanitizeLocationInPlace(rest);
+        }
 
         if (Object.prototype.hasOwnProperty.call(rest, 'owner')) {
             rest.owner = await normalizeOwnersForSave(rest.owner);
+        }
+        const ownerUserId = await resolveUserIdForPgFields({
+            owner: rest.owner ?? existing.owner,
+            userId: rest.userId ?? existing.userId,
+            contactNumber: rest.contactNumber ?? existing.contactNumber,
+            contactEmail: rest.contactEmail ?? existing.contactEmail,
+        });
+        if (ownerUserId) rest.userId = ownerUserId;
+
+        const slugFieldsChanged =
+            Object.prototype.hasOwnProperty.call(rest, 'name') ||
+            Object.prototype.hasOwnProperty.call(rest, 'locality') ||
+            Object.prototype.hasOwnProperty.call(rest, 'city');
+
+        if (rest.slug && String(rest.slug).trim()) {
+            rest.slug = await allocateUniquePgSlug(
+                PG,
+                {
+                    name: rest.name ?? existing.name,
+                    locality: rest.locality ?? existing.locality,
+                    city: rest.city ?? existing.city,
+                },
+                {
+                    excludeId: existing._id,
+                    baseSlug: slugifyText(rest.slug),
+                },
+            );
+        } else if (slugFieldsChanged || !existing.slug) {
+            rest.slug = await allocateUniquePgSlug(
+                PG,
+                {
+                    name: rest.name ?? existing.name,
+                    locality: rest.locality ?? existing.locality,
+                    city: rest.city ?? existing.city,
+                },
+                { excludeId: existing._id },
+            );
         }
 
         Object.assign(existing, rest);

@@ -228,18 +228,18 @@ class ManageEnquiryService {
             });
             //  await this.leadSquadApiCall(body);
             let getTemplateObject = this._createTemplateObjects({ user, workSpace, interested_in, no_of_person, officeSpace, livingSpace, city });
-            if (mx_Space_Type === 'Web Coworking' && isMessageSent) {
-                await messageService.sendWhatsAppMessage(phone_number, [user.name]);
-                await aws.sendMail(getTemplateObject.userParams);
-                if (this.isShowNumberBySeats(no_of_person)) {
-                    await messageService.sendLeadsOnWhatsApp('+919599993993', [user.name, user.phone_number, user.email, no_of_person, interested_in, city, microlocation, address, mx_Page_Url]);
-                }
-            };
-            if (mx_Space_Type === 'Web Virtual Office' && isMessageSent) {
-                await messageService.sendWhatsAppWelcomeForVirtual(phone_number, [user.name], virtualMessageSid);
-                await aws.sendMail(getTemplateObject.virtualParams);
-                await aws.sendMail(getTemplateObject.virtual_option_Params);
-            };
+            // if (mx_Space_Type === 'Web Coworking' && isMessageSent) {
+            //     await messageService.sendWhatsAppMessage(phone_number, [user.name]);
+            //     await aws.sendMail(getTemplateObject.userParams);
+            //     if (this.isShowNumberBySeats(no_of_person)) {
+            //         await messageService.sendLeadsOnWhatsApp('+919599993993', [user.name, user.phone_number, user.email, no_of_person, interested_in, city, microlocation, address, mx_Page_Url]);
+            //     }
+            // };
+            // if (mx_Space_Type === 'Web Virtual Office' && isMessageSent) {
+            //     await messageService.sendWhatsAppWelcomeForVirtual(phone_number, [user.name], virtualMessageSid);
+            //     await aws.sendMail(getTemplateObject.virtualParams);
+            //     await aws.sendMail(getTemplateObject.virtual_option_Params);
+            // };
             const values = {
                 formattedDate,
                 city,
@@ -258,9 +258,9 @@ class ManageEnquiryService {
                 google_sheet,
                 // property_name
             };
-            if (google_sheet) {
-                await this.uploadToExcelsheetForSpace(values, google_sheet);
-            };
+            // if (google_sheet) {
+            //     await this.uploadToExcelsheetForSpace(values, google_sheet);
+            // };
             const users = await User.find({
                 $or: [
                     { role: 'sales' },
@@ -268,9 +268,6 @@ class ManageEnquiryService {
                 ]
             });
             users.forEach((item) => {
-                // if (!item.google_sheet && !item.sales_contact) {
-                //     return;  // 🔴 Skip this user entirely
-                // }
                 if (item.enquiry) {
                     item.enquiry.forEach((enq) => {
                         if (enq.space === mx_Space_Type) {
@@ -302,15 +299,15 @@ class ManageEnquiryService {
                             }
                             if (shouldUpload && !isMarketing && item.is_active) {
                                 assignedUsers.push(item.id)
-                                if (item.google_sheet && name !== 'test') {
-                                    this.uploadToExcelsheet(values, item.google_sheet, item.shown_column);
-                                }
-                                if (this.isShowNumberBySeats(no_of_person) && isMessageSent && item.sales_contact || (mx_Space_Type === 'Web Virtual Office' && isMessageSent)) {
-                                    messageService.sendLeadsOnWhatsApp(`+91${item.sales_contact}`, [user.name, user.phone_number, user.email, no_of_person, interested_in, city, microlocation, address, mx_Page_Url]);
-                                }
-                                if (item.id === '672df1f4d1496fc7c55faaf0') {
-                                    this.postLeadToLeadSquared(this.leadData(user.name, user.email, user.phone_number, microlocation), config)
-                                }
+                                // if (item.google_sheet && name !== 'test') {
+                                //     this.uploadToExcelsheet(values, item.google_sheet, item.shown_column);
+                                // }
+                                // if (this.isShowNumberBySeats(no_of_person) && isMessageSent && item.sales_contact || (mx_Space_Type === 'Web Virtual Office' && isMessageSent)) {
+                                //     messageService.sendLeadsOnWhatsApp(`+91${item.sales_contact}`, [user.name, user.phone_number, user.email, no_of_person, interested_in, city, microlocation, address, mx_Page_Url]);
+                                // }
+                                // if (item.id === '672df1f4d1496fc7c55faaf0') {
+                                //     this.postLeadToLeadSquared(this.leadData(user.name, user.email, user.phone_number, microlocation), config)
+                                // }
                             }
                         }
                     });

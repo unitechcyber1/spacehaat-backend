@@ -3,23 +3,35 @@
  * Set CORS_ORIGINS=comma,separated for extra exact origins.
  */
 
+function trimOrigin(value) {
+    if (value == null || value === '') return '';
+    return String(value).trim().replace(/\/$/, '');
+}
+
 function buildAllowedOriginsSet() {
     const defaults = [
         'https://admin.spacehaat.com',
         'https://www.admin.spacehaat.com',
+        'http://admin.spacehaat.com',
         'https://spacehaat.com',
         'https://www.spacehaat.com',
         'https://api.spacehaat.com',
         'http://localhost:3000',
         'http://localhost:5173',
         'http://127.0.0.1:5173',
-        'http://127.0.0.1:3000'
+        'http://127.0.0.1:3000',
     ];
     const fromEnv = (process.env.CORS_ORIGINS || '')
         .split(',')
-        .map((s) => s.trim())
+        .map((s) => trimOrigin(s))
         .filter(Boolean);
-    const extra = [process.env.FRONTEND_URL, process.env.ADMIN_URL].filter(Boolean);
+    const extra = [
+        process.env.FRONTEND_URL,
+        process.env.ADMIN_URL,
+        process.env.ADMIN_FRONTEND_URL,
+    ]
+        .map((s) => trimOrigin(s))
+        .filter(Boolean);
     return new Set([...defaults, ...fromEnv, ...extra]);
 }
 
@@ -28,13 +40,19 @@ export function isOriginAllowed(origin) {
     if (!origin || typeof origin !== 'string') {
         return false;
     }
+    const normalized = trimOrigin(origin);
     const allowed = buildAllowedOriginsSet();
-    if (allowed.has(origin.trim())) {
+    if (allowed.has(normalized)) {
         return true;
     }
     try {
-        const { hostname } = new URL(origin);
-        if (hostname === 'spacehaat.com' || hostname.endsWith('.spacehaat.com')) {
+        const { hostname } = new URL(normalized);
+        if (
+            hostname === 'spacehaat.com' ||
+            hostname.endsWith('.spacehaat.com') ||
+            hostname === 'admin.spacehaat.com' ||
+            hostname.endsWith('.admin.spacehaat.com')
+        ) {
             return true;
         }
     } catch {
@@ -44,7 +62,7 @@ export function isOriginAllowed(origin) {
 }
 
 const DEFAULT_ALLOW_HEADERS =
-    'Content-Type, Authorization, token, x-client-key, x-client-token, x-client-secret, X-Requested-With, Accept, Origin';
+    'Content-Type, Authorization, token, x-client-key, x-api-key, x-client-token, x-client-secret, X-Requested-With, Accept, Origin';
 
 /**
  * Handles preflight (OPTIONS) and sets CORS on all responses.
