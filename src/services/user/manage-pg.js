@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import models from '../../models/index.js';
 import { formatPgForFrontend, toPgSlug } from '../../utilities/pg-response-formatter.js';
+import { createDynamicPriorityType } from '../../utilities/pg-priority.js';
 
 const PG = models.PG;
 
@@ -29,6 +30,71 @@ function escapeRegex(s) {
     return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * @returns {null | {
+ *   priorityType: string,
+ *   priorityIsActiveField: string,
+ *   priorityOrderField: string,
+ *   priorityOnly: boolean,
+ * }}
+ */
+function parsePriorityQuery(query) {
+    const priorityType = query.priorityType || query.priority_type;
+    if (!priorityType) return null;
+
+    const virtualPriority =
+        query.virtualPriority === true ||
+        query.virtualPriority === 'true' ||
+        query.virtual_priority === true ||
+        query.virtual_priority === 'true';
+
+    const dynamicPriorityBase = createDynamicPriorityType(priorityType, virtualPriority);
+    if (!dynamicPriorityBase) {
+        throw httpError(400, 'priorityType must be overall, location, or micro_location');
+    }
+
+    const priorityOnly =
+        query.priorityOnly === true ||
+        query.priorityOnly === 'true' ||
+        query.priority_only === true ||
+        query.priority_only === 'true';
+
+    const priorityCity = query.priorityCity || query.priority_city;
+    if (priorityType === 'location' || priorityType === 'micro_location') {
+        if (!priorityCity) {
+            throw httpError(400, 'priorityCity is required when priorityType is location or micro_location');
+        }
+        if (!isValidObjectId(priorityCity)) {
+            throw httpError(400, 'priorityCity must be a valid City id');
+        }
+    }
+
+    return {
+        priorityType,
+        priorityIsActiveField: `${dynamicPriorityBase}.is_active`,
+        priorityOrderField: `${dynamicPriorityBase}.order`,
+        priorityCity,
+        priorityOnly,
+    };
+}
+
+/** Apply priority filters; default = priority PGs first + rest of matching PGs. */
+function applyPriorityToCondition(condition, parsed) {
+    if (!parsed) return;
+
+    if (parsed.priorityOnly) {
+        condition[parsed.priorityIsActiveField] = true;
+    }
+
+    // City / locality priority lists: scope full result set to this city
+    if (
+        parsed.priorityCity &&
+        (parsed.priorityType === 'location' || parsed.priorityType === 'micro_location')
+    ) {
+        condition['locationIds.city'] = parsed.priorityCity;
+    }
+}
+
 class ManagePgService {
     constructor() {
         return {
@@ -41,6 +107,12 @@ class ManagePgService {
      * List PGs for public/user app.
      * Query: limit, skip, page, sortBy, orderBy, city, locality, name,
      * minPrice, maxPrice, verified, foodIncluded, parking, preferredGuest, type (availableFor)
+     *
+     * Priority (optional, on same endpoint):
+     *   priorityType=overall|location|micro_location
+     *   priorityCity=<City ObjectId>  (required for location / micro_location)
+     *   virtualPriority=true|false
+     *   priorityOnly=true  — return only active priority PGs (default: false = priority first, then rest)
      */
     async getPgs(query = {}) {
         const {
@@ -62,6 +134,9 @@ class ManagePgService {
         } = query;
 
         const condition = { ...publicPgFilter() };
+
+        const priorityParsed = parsePriorityQuery(query);
+        applyPriorityToCondition(condition, priorityParsed);
 
         if (city) {
             condition.city = { $regex: escapeRegex(String(city).trim()), $options: 'i' };
@@ -134,10 +209,23 @@ class ManagePgService {
             ? sortBy
             : 'added_on';
         const sortDir = Number(orderBy) === 1 ? 1 : -1;
-        const sort = { [sortField]: sortDir };
+
+        let sort;
+        if (priorityParsed) {
+            // Active priority slots first (by order), then remaining PGs (by sortBy)
+            sort = {
+                [priorityParsed.priorityIsActiveField]: -1,
+                [priorityParsed.priorityOrderField]: 1,
+                [sortField]: sortDir,
+            };
+        } else {
+            sort = { [sortField]: sortDir };
+        }
 
         const populateQuery = PG.find(condition)
             .populate('images.image')
+            .populate('locationIds.city')
+            .populate('locationIds.micro_location')
             .sort(sort)
             .skip(sk)
             .limit(lim);

@@ -137,6 +137,13 @@ export function formatPgForFrontend(doc) {
         description: doc.description || '',
         verified: !!doc.verified,
         status: doc.status || '',
+        priority: doc.priority
+            ? {
+                  overall: doc.priority.overall,
+                  location: doc.priority.location,
+                  micro_location: doc.priority.micro_location,
+              }
+            : undefined,
         rooms: (Array.isArray(doc.pgRooms) ? doc.pgRooms : []).map((r) => ({
             type: r.roomType || '',
             rent: r.monthlyRent != null ? Number(r.monthlyRent) : null,

@@ -105,6 +105,33 @@ const PgRatingSchema = new Schema(
     { _id: true }
 );
 
+const PgPrioritySlotSchema = new Schema(
+    {
+        is_active: { type: Boolean, default: false },
+        order: { type: Number, default: 1000 },
+    },
+    { _id: false },
+);
+
+const PgLocationPrioritySchema = new Schema(
+    {
+        city: { type: Schema.Types.ObjectId, ref: 'City' },
+        is_active: { type: Boolean, default: false },
+        order: { type: Number, default: 1000 },
+    },
+    { _id: false },
+);
+
+const PgMicroLocationPrioritySchema = new Schema(
+    {
+        name: String,
+        city: { type: Schema.Types.ObjectId, ref: 'City' },
+        is_active: { type: Boolean, default: false },
+        order: { type: Number, default: 1000 },
+    },
+    { _id: false },
+);
+
 const PGSchema = new Schema(
     {
         pg_id: { type: String, index: true },
@@ -193,6 +220,16 @@ const PGSchema = new Schema(
         minMonthlyRent: Number,
         maxMonthlyRent: Number,
         singleRoomPrice: Number,
+
+        /** Featured (overall) + city + locality ordering — mirrors WorkSpace.priority */
+        priority: {
+            overall: { type: PgPrioritySlotSchema, default: () => ({}) },
+            location: { type: PgLocationPrioritySchema, default: () => ({}) },
+            micro_location: { type: PgMicroLocationPrioritySchema, default: () => ({}) },
+        },
+        virtual_priority: {
+            location: { type: PgLocationPrioritySchema, default: () => ({}) },
+        },
 
         // References to PgOwner documents (separate collection)
         owner: [{ type: Schema.Types.ObjectId, ref: 'PgOwner' }]
