@@ -6,6 +6,11 @@ import { ensureVendorUserForPgOwner } from '../../utilities/pg-owner-user-sync.j
 import { resolveUserIdForPgFields } from '../../utilities/pg-userid-from-owner-sync.js';
 import { allocateNextPgId } from '../../utilities/pg-id-format.js';
 import { allocateUniquePgSlug, slugifyText } from '../../utilities/pg-slug.js';
+import {
+    createDynamicPriorityType,
+    pgPriorityCityCondition,
+    priorityResetOnRejectFields,
+} from '../../utilities/pg-priority.js';
 
 const PG = models.PG;
 
@@ -329,7 +334,54 @@ class ManagePgService {
             updatePg: this.updatePg.bind(this),
             deletePg: this.deletePg.bind(this),
             changePgStatus: this.changePgStatus.bind(this),
+            addPriorityPgs: this.addPriorityPgs.bind(this),
+            setPriorityByType: this.setPriorityByType.bind(this),
+            pgOrderByDrag: this.pgOrderByDrag.bind(this),
+            getPriorityPgs: this.getPriorityPgs.bind(this),
         };
+    }
+
+    /**
+     * Admin priority list (includes non-approved PGs). Query: type, city, virtual_priority
+     */
+    async getPriorityPgs({ type = 'overall', city, virtual_priority = false }) {
+        const dynamicPriorityBase = createDynamicPriorityType(
+            type,
+            virtual_priority === true || virtual_priority === 'true',
+        );
+        if (!dynamicPriorityBase) {
+            return { priorityPgs: [], count: 0 };
+        }
+
+        const priorityIsActiveField = `${dynamicPriorityBase}.is_active`;
+        const priorityOrderField = `${dynamicPriorityBase}.order`;
+        const cityFilterField = `${dynamicPriorityBase}.city`;
+
+        const condition = {
+            delete: { $ne: true },
+            [priorityIsActiveField]: true,
+        };
+
+        if (city && (type === 'location' || type === 'micro_location')) {
+            if (!isValidObjectId(city)) {
+                throw httpError(400, 'city must be a valid City id');
+            }
+            condition[cityFilterField] = city;
+        }
+
+        const [priorityPgs, count] = await Promise.all([
+            PG.find(condition)
+                .populate('images.image')
+                .populate('userId')
+                .populate('locationIds.city')
+                .populate('locationIds.micro_location')
+                .sort({ [priorityOrderField]: 1 })
+                .lean(),
+            PG.countDocuments(condition),
+        ]);
+
+        await attachPgOwnerDetails(priorityPgs);
+        return { priorityPgs, count };
     }
 
     /**
@@ -597,6 +649,9 @@ class ManagePgService {
         if ($set.adminApproved === true) {
             $set.adminApprovalDate = new Date();
         }
+        if ($set.status === 'reject') {
+            Object.assign($set, priorityResetOnRejectFields());
+        }
         if (Object.keys($set).length === 0) {
             throw httpError(400, 'Provide status, adminApproved, verified, or active');
         }
@@ -605,6 +660,107 @@ class ManagePgService {
             throw httpError(404, 'PG not found');
         }
         return doc;
+    }
+
+    /**
+     * Set priority for a PG (featured / city / locality).
+     * Body: { id, type: 'overall'|'location'|'micro_location', data: { is_active, order, city?, name? }, virtual_priority? }
+     */
+    async addPriorityPgs({ id, type, data, virtual_priority }) {
+        if (!id || !isValidObjectId(id)) {
+            throw httpError(400, 'Invalid PG id');
+        }
+        if (!type || !data || typeof data !== 'object') {
+            throw httpError(400, 'type and data are required');
+        }
+
+        const objectPath = createDynamicPriorityType(type, virtual_priority);
+        const priorityKey = virtual_priority ? 'virtual_priority' : 'priority';
+        const slotKey = virtual_priority
+            ? 'location'
+            : type === 'micro_location'
+              ? 'micro_location'
+              : type === 'location'
+                ? 'location'
+                : 'overall';
+
+        if (!data.is_active) {
+            const doc = await PG.findById(id).select(priorityKey).lean();
+            const slot = doc?.[priorityKey]?.[slotKey];
+            const priorityOrder = `${objectPath}.order`;
+            const priorityActive = `${objectPath}.is_active`;
+            if (slot?.order != null) {
+                const condition = {
+                    [priorityOrder]: { $gt: slot.order },
+                    [priorityActive]: true,
+                    delete: { $ne: true },
+                    ...pgPriorityCityCondition(data),
+                };
+                await PG.updateMany(condition, { $inc: { [priorityOrder]: -1 } });
+            }
+        }
+
+        if (virtual_priority) {
+            await PG.updateOne({ _id: id }, { $set: { 'virtual_priority.location': data } });
+        } else {
+            await PG.updateOne({ _id: id }, { $set: { [objectPath]: data } });
+        }
+        return true;
+    }
+
+    async setPriorityByType({ initialPosition, finalPosition, shiftedId, type }) {
+        if (!shiftedId || !isValidObjectId(shiftedId)) {
+            throw httpError(400, 'Invalid shiftedId');
+        }
+        const priorityOrder = `${createDynamicPriorityType(type)}.order`;
+        const priorityActive = `${createDynamicPriorityType(type)}.is_active`;
+
+        if (initialPosition < finalPosition) {
+            await PG.updateMany(
+                {
+                    [priorityOrder]: { $lte: finalPosition, $gt: initialPosition },
+                    [priorityActive]: true,
+                    delete: { $ne: true },
+                },
+                { $inc: { [priorityOrder]: -1 } },
+            );
+            await PG.updateOne({ _id: shiftedId }, { $set: { [priorityOrder]: finalPosition } });
+        }
+        if (initialPosition > finalPosition) {
+            await PG.updateMany(
+                {
+                    [priorityOrder]: { $lt: initialPosition, $gte: finalPosition },
+                    [priorityActive]: true,
+                    delete: { $ne: true },
+                },
+                { $inc: { [priorityOrder]: 1 } },
+            );
+            await PG.updateOne({ _id: shiftedId }, { $set: { [priorityOrder]: finalPosition } });
+        }
+        return true;
+    }
+
+    async pgOrderByDrag({ updatedProjects, priorityType, virtual_priority }) {
+        if (!Array.isArray(updatedProjects)) {
+            throw httpError(400, 'updatedProjects must be an array');
+        }
+        const objectPath = createDynamicPriorityType(priorityType, virtual_priority);
+
+        for (const project of updatedProjects) {
+            const { _id, priority } = project;
+            if (!_id || !isValidObjectId(_id)) continue;
+            const sourcePriority = virtual_priority ? project.virtual_priority : priority;
+            const orderValue = sourcePriority?.[priorityType]?.order;
+            if (orderValue === undefined) continue;
+
+            await PG.findByIdAndUpdate(_id, {
+                $set: {
+                    [`${objectPath}.order`]: orderValue,
+                    [`${objectPath}.is_active`]: orderValue !== 1000,
+                },
+            });
+        }
+        return true;
     }
 }
 

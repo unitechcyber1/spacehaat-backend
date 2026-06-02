@@ -8,6 +8,10 @@ class ManagePg {
             createOrUpdatePg: this.createOrUpdatePg.bind(this),
             deletePg: this.deletePg.bind(this),
             changePgStatus: this.changePgStatus.bind(this),
+            addPriorityPgs: this.addPriorityPgs.bind(this),
+            setPriorityByType: this.setPriorityByType.bind(this),
+            pgOrderByDrag: this.pgOrderByDrag.bind(this),
+            getPriorityPgs: this.getPriorityPgs.bind(this),
         };
     }
 
@@ -73,6 +77,46 @@ class ManagePg {
                 message: 'PG status updated',
                 data,
             });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getPriorityPgs(req, res, next) {
+        try {
+            const result = await managePgService.getPriorityPgs(req.query);
+            res.status(200).json({
+                message: 'Priority PG list',
+                data: result.priorityPgs,
+                totalRecords: result.count,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async addPriorityPgs(req, res, next) {
+        try {
+            await managePgService.addPriorityPgs(req.body);
+            res.status(200).json({ message: 'Priority PG updated' });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async setPriorityByType(req, res, next) {
+        try {
+            await managePgService.setPriorityByType(req.body);
+            res.status(200).json({ message: 'Priority PG order updated' });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async pgOrderByDrag(req, res, next) {
+        try {
+            await managePgService.pgOrderByDrag(req.body);
+            res.status(200).json({ message: 'Priority PG drag order saved' });
         } catch (error) {
             next(error);
         }
