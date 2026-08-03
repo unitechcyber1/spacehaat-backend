@@ -6,6 +6,7 @@ const router = express.Router();
 
 router
     .get('/pgs', ManagePgController.getPgs)
+    .get('/pgs/:findKey/contact', ManagePgController.getPgContact)
     .get('/pgs/:findKey', ManagePgController.getPgByIdOrSlug);
 
 export default router;

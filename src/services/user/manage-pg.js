@@ -95,11 +95,122 @@ function applyPriorityToCondition(condition, parsed) {
     }
 }
 
+async function findPublicPgByFindKey(findKey, { populateImages = true } = {}) {
+    if (!findKey || !String(findKey).trim()) {
+        throw httpError(400, 'PG id or slug is required');
+    }
+
+    const key = String(findKey).trim();
+    const base = publicPgFilter();
+
+    const withPopulate = (q) => (populateImages ? q.populate('images.image') : q);
+
+    let doc = null;
+
+    if (isValidObjectId(key)) {
+        doc = await withPopulate(PG.findOne({ ...base, _id: key })).lean();
+    }
+
+    if (!doc) {
+        doc = await withPopulate(
+            PG.findOne({
+                ...base,
+                pg_id: new RegExp(`^${escapeRegex(key)}$`, 'i'),
+            }),
+        ).lean();
+    }
+
+    if (!doc) {
+        doc = await withPopulate(
+            PG.findOne({
+                ...base,
+                slug: new RegExp(`^${escapeRegex(key)}$`, 'i'),
+            }),
+        ).lean();
+    }
+
+    if (!doc) {
+        const slugKey = key.toLowerCase();
+        const nameGuess = key.replace(/-/g, ' ').trim();
+        const candidates = await withPopulate(
+            PG.find({
+                ...base,
+                $or: [
+                    { name: new RegExp(escapeRegex(nameGuess), 'i') },
+                    { pg_id: new RegExp(escapeRegex(key), 'i') },
+                ],
+            })
+                .limit(25),
+        ).lean();
+
+        doc =
+            candidates.find((c) => toPgSlug(c) === slugKey) ||
+            candidates.find((c) => String(c.pg_id || '').toLowerCase() === slugKey) ||
+            (candidates.length === 1 ? candidates[0] : null);
+    }
+
+    if (!doc) {
+        throw httpError(404, 'PG not found');
+    }
+
+    return doc;
+}
+
+async function resolvePgContact(doc) {
+    let name = '';
+    let phone = '';
+
+    const ownerIds = Array.isArray(doc.owner)
+        ? doc.owner
+              .map((o) => {
+                  if (o == null) return null;
+                  if (typeof o === 'string' || o instanceof mongoose.Types.ObjectId) return String(o);
+                  if (typeof o === 'object' && o._id) return String(o._id);
+                  return null;
+              })
+              .filter((id) => isValidObjectId(id))
+        : [];
+
+    if (ownerIds.length) {
+        const oidList = ownerIds.map((id) => new mongoose.Types.ObjectId(id));
+        const owners = await models.PgOwner.find({
+            $or: [{ _id: { $in: oidList } }, { userId: { $in: oidList } }],
+            delete: { $ne: true },
+        })
+            .select('name phone')
+            .lean();
+
+        const owner =
+            owners.find((o) => o.phone && String(o.phone).trim()) || owners[0] || null;
+        if (owner) {
+            name = owner.name ? String(owner.name).trim() : '';
+            phone = owner.phone ? String(owner.phone).trim() : '';
+        }
+    }
+
+    if (!phone && doc.contactNumber) {
+        phone = String(doc.contactNumber).trim();
+    }
+    if (!name && doc.postBy) {
+        name = String(doc.postBy).trim();
+    }
+    if (!name && doc.name) {
+        name = String(doc.name).trim();
+    }
+
+    if (!phone) {
+        throw httpError(404, 'Contact not available for this PG');
+    }
+
+    return { phone, name: name || '' };
+}
+
 class ManagePgService {
     constructor() {
         return {
             getPgs: this.getPgs.bind(this),
             getPgByIdOrSlug: this.getPgByIdOrSlug.bind(this),
+            getPgContact: this.getPgContact.bind(this),
         };
     }
 
@@ -242,69 +353,22 @@ class ManagePgService {
     }
 
     async getPgByIdOrSlug({ findKey }) {
-        if (!findKey || !String(findKey).trim()) {
-            throw httpError(400, 'PG id or slug is required');
-        }
-
-        const key = String(findKey).trim();
-        const base = publicPgFilter();
-
-        let doc = null;
-
-        if (isValidObjectId(key)) {
-            doc = await PG.findOne({ ...base, _id: key })
-                .populate('images.image')
-                .lean();
-        }
-
-        if (!doc) {
-            doc = await PG.findOne({
-                ...base,
-                pg_id: new RegExp(`^${escapeRegex(key)}$`, 'i'),
-            })
-                .populate('images.image')
-                .lean();
-        }
-
-        if (!doc) {
-            doc = await PG.findOne({
-                ...base,
-                slug: new RegExp(`^${escapeRegex(key)}$`, 'i'),
-            })
-                .populate('images.image')
-                .lean();
-        }
-
-        if (!doc) {
-            const slugKey = key.toLowerCase();
-            const nameGuess = key.replace(/-/g, ' ').trim();
-            const candidates = await PG.find({
-                ...base,
-                $or: [
-                    { name: new RegExp(escapeRegex(nameGuess), 'i') },
-                    { pg_id: new RegExp(escapeRegex(key), 'i') },
-                ],
-            })
-                .populate('images.image')
-                .limit(25)
-                .lean();
-
-            doc =
-                candidates.find((c) => toPgSlug(c) === slugKey) ||
-                candidates.find((c) => String(c.pg_id || '').toLowerCase() === slugKey) ||
-                (candidates.length === 1 ? candidates[0] : null);
-        }
-
-        if (!doc) {
-            throw httpError(404, 'PG not found');
-        }
-
+        const doc = await findPublicPgByFindKey(findKey, { populateImages: true });
         const pg = formatPgForFrontend(doc);
         return {
             id: String(doc._id),
             slug: pg?.slug || toPgSlug(doc),
             pg,
         };
+    }
+
+    /**
+     * Unlock contact for a public PG. Phone is intentionally omitted from list/detail.
+     * GET /api/user/pgs/:findKey/contact
+     */
+    async getPgContact({ findKey }) {
+        const doc = await findPublicPgByFindKey(findKey, { populateImages: false });
+        return resolvePgContact(doc);
     }
 }
 

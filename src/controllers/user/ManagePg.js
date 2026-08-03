@@ -5,6 +5,7 @@ class ManagePg {
         return {
             getPgs: this.getPgs.bind(this),
             getPgByIdOrSlug: this.getPgByIdOrSlug.bind(this),
+            getPgContact: this.getPgContact.bind(this),
         };
     }
 
@@ -29,6 +30,18 @@ class ManagePg {
                 id: result.id,
                 slug: result.slug,
                 data: result.pg,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getPgContact(req, res, next) {
+        try {
+            const data = await managePgService.getPgContact(req.params);
+            res.status(200).json({
+                message: 'PG contact',
+                data,
             });
         } catch (error) {
             next(error);
