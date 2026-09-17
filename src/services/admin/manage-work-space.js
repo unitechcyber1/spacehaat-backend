@@ -444,11 +444,14 @@ class ManageWorkSpaceService {
             let year = d.getFullYear();
             let totalCount = await WorkSpace.countDocuments();
             let finalCount = totalCount + 1;
-            if (location && location.latitude && location.longitude) {
+            if (location?.latitude && location?.longitude) {
                 const countryInfo = findCountryByCoordinate(+location.latitude, +location.longitude);
                 let country_name = countryInfo.name;
                 let currency_code = getCountry(country_name).currency;
                 geometry = this._setGeoLocation(location);
+            } else {
+                // Avoid Mongoose default `{ type: 'Point' }` without coordinates (breaks 2dsphere index).
+                geometry = null;
             }
             if (user) {
                 finalSlug = await this._createSlug(null, name, location.name);
@@ -765,7 +768,10 @@ class ManageWorkSpaceService {
     }) {
         try {
             sanitizeWorkSpaceLocationInPlace(location);
-            const geometry = this._setGeoLocation(location);
+            const geometry =
+                location?.latitude && location?.longitude
+                    ? this._setGeoLocation(location)
+                    : null;
             const slug = await this._createSlug(id, name, location.name);
             const countryInfo = findCountryByCoordinate(+location.latitude, +location.longitude);
             let country_name = countryInfo.name;
