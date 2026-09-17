@@ -18,6 +18,7 @@ import virtualFourthReminder from './templates/virtual-fourth-reminder.js';
 import colivingCredits from './templates/coliving-credits.js';
 import virtualOfficeFollowups from './templates/virtual-office-followups.js';
 import virtualOfficeOptions from './templates/virtual-office-options.js';
+import invoice from './templates/invoice.js';
 
 export default {
     "welcome": {
@@ -68,6 +69,10 @@ export default {
     "payment": {
         html: '',
         subject: ''
+    },
+    "invoice": {
+        html: invoice,
+        subject: 'Invoice {invoiceNumber} from SpaceHaat — Rs. {total} due {dueDate}'
     },
     "adminEnquiry": {
         html: adminEnquiry,
