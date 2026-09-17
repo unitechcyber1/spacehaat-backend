@@ -4,6 +4,7 @@ import { requireEncryptionKey } from '../utilities/helper.js';
 import aes256 from 'aes256';
 import redis from '../utilities/redis.js';
 import models from '../models/index.js';
+import { buildActorUser } from '../utilities/billing/billingAccess.js';
 const User = models['User']
 
 class CheckToken {
@@ -30,10 +31,21 @@ class CheckToken {
                     if (!token || !user.is_active) {
                         return res.status(401).json({ type: 'Error', message: 'Invalid Token' });
                     }
+                    let tokenRole = '';
+                    try {
+                        if (encoded.role) {
+                            tokenRole = await aes256.decrypt(encryptedKey, encoded.role);
+                        }
+                    } catch {
+                        tokenRole = user?.role || 'admin';
+                    }
+
+                    const actorUser = buildActorUser(user, decryptedId, tokenRole || user?.role || 'admin');
                     req.admin = {
                         id: decryptedId,
-                        role: 'admin'
-                    }
+                        role: actorUser.role,
+                    };
+                    req.user = actorUser;
                     next();
                 }
             });
