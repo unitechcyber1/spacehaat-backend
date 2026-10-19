@@ -1,19 +1,22 @@
 import { google } from "googleapis";
 import { JWT } from "google-auth-library";
-import { loadGoogleServiceAccountJson } from "./loadGoogleCredentials.js";
+import { createGoogleSheetsUnavailableClient, loadGoogleServiceAccountJson } from "./loadGoogleCredentials.js";
 
 const keys = loadGoogleServiceAccountJson({
     prefix: "GOOGLE_LISTING_SHEETS_CREDENTIALS",
     defaultFilename: "listing-module-queries-9d143be3b97d.json",
 });
 
-const client = new JWT({
-    email: keys.client_email,
-    key: keys.private_key,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-});
-
-export const sheets = google.sheets({ version: "v4", auth: client });
+export const sheets = keys?.client_email && keys?.private_key
+    ? google.sheets({
+        version: "v4",
+        auth: new JWT({
+            email: keys.client_email,
+            key: keys.private_key,
+            scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        }),
+    })
+    : createGoogleSheetsUnavailableClient("GOOGLE_LISTING_SHEETS_CREDENTIALS");
 
 
 export default function extractSpreadsheetId(link) {

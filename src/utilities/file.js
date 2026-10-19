@@ -5,6 +5,17 @@ import fs from "fs/promises"; // Use fs/promises for promise-based fs functions
 import AWS from './aws.js';
 import sharp from 'sharp';
 
+/** Folder of an image inside the bucket, taken from its URL: https://host/images/original/a.jpg -> 'images/original'. */
+export function folderFromS3Link(s3Link) {
+    if (!s3Link) return '';
+    try {
+        const segments = decodeURIComponent(new URL(s3Link).pathname).split('/').filter(Boolean);
+        return segments.slice(0, -1).join('/');
+    } catch {
+        return '';
+    }
+}
+
 class File {
     constructor() {
         return {
@@ -91,6 +102,7 @@ class File {
                 real_name: realName,
                 path_local: type === 'document' ? `${path}/${uploadedFile}` : '',
                 s3_link: uploadedFile ? convertedUrl : '',
+                folder_name: uploadedFile && type !== 'document' ? folderFromS3Link(convertedUrl) : undefined,
                 size: size,
                 height: height,
                 width: width,
@@ -105,7 +117,8 @@ class File {
 
     async deleteFile(Key, imageFolderName) {
         try {
-            const prefix = this._normalizeKeyPrefix(imageFolderName);
+            // An empty folder means the file sits at the bucket root.
+            const prefix = imageFolderName === '' ? '' : this._normalizeKeyPrefix(imageFolderName);
             const objectKey = prefix ? `${prefix}/${Key}` : Key;
             await AWS.S3Delete({ Key: objectKey, Bucket: storage.s3.bucket });
             // await AWS.S3Delete({ Key, Bucket: `${storage.s3.path.image}/large` });

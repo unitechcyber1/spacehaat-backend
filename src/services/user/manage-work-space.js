@@ -43,6 +43,7 @@ function parseObjectIdParam(value) {
 const filteredFields = {
     name: 1,
     description: 1,
+    new_description: 1,
     email: 1,
     contact_details: 1,
     website_Url: 1,
@@ -50,6 +51,7 @@ const filteredFields = {
     amenties: 1,
     social_media: 1,
     seo: 1,
+    new_seo: 1,
     location: 1,
     hours_of_operation: 1,
     geometry: 1,
@@ -538,6 +540,8 @@ class ManageWorkSpaceService {
                 .populate('images.image')
                 .populate('seo.twitter.image')
                 .populate('seo.open_graph.image')
+                .populate('new_seo.twitter.image')
+                .populate('new_seo.open_graph.image')
                 .populate('brand')
                 .populate('location.city')
                 .limit(limit)
@@ -618,6 +622,8 @@ class ManageWorkSpaceService {
                 .populate('plans.image')
                 .populate('seo.twitter.image')
                 .populate('seo.open_graph.image')
+                .populate('new_seo.twitter.image')
+                .populate('new_seo.open_graph.image')
                 .populate('plans.category')
                 .populate({
                     path: 'brand',
@@ -666,6 +672,8 @@ class ManageWorkSpaceService {
                     .populate('images.image')
                     .populate('seo.twitter.image')
                     .populate('seo.open_graph.image')
+                    .populate('new_seo.twitter.image')
+                    .populate('new_seo.open_graph.image')
                     .populate('brand')
                     .populate('location.city')
                     .populate({
@@ -687,6 +695,8 @@ class ManageWorkSpaceService {
                         .populate('images.image')
                         .populate('seo.twitter.image')
                         .populate('seo.open_graph.image')
+                        .populate('new_seo.twitter.image')
+                        .populate('new_seo.open_graph.image')
                         .populate('brand')
                         .populate('location.city')
                         .populate({
@@ -721,6 +731,8 @@ class ManageWorkSpaceService {
                     .populate('images.image')
                     .populate('seo.twitter.image')
                     .populate('seo.open_graph.image')
+                    .populate('new_seo.twitter.image')
+                    .populate('new_seo.open_graph.image')
                     .populate('brand')
                     .populate('location.city')
                     .populate({
@@ -742,6 +754,8 @@ class ManageWorkSpaceService {
                         .populate('images.image')
                         .populate('seo.twitter.image')
                         .populate('seo.open_graph.image')
+                        .populate('new_seo.twitter.image')
+                        .populate('new_seo.open_graph.image')
                         .populate('brand')
                         .populate('location.city')
                         .populate({
@@ -798,6 +812,8 @@ class ManageWorkSpaceService {
                 .populate('images.image')
                 .populate('seo.twitter.image')
                 .populate('seo.open_graph.image')
+                .populate('new_seo.twitter.image')
+                .populate('new_seo.open_graph.image')
                 .sort({ 'is_popular.order': 1 });
             result.count = await WorkSpace.countDocuments(condition);
             return result;
@@ -815,6 +831,8 @@ class ManageWorkSpaceService {
                 .populate('images.image')
                 .populate('seo.twitter.image')
                 .populate('seo.open_graph.image')
+                .populate('new_seo.twitter.image')
+                .populate('new_seo.open_graph.image')
                 .sort({ 'is_popular.order': 1 });
             result.count = await WorkSpace.countDocuments(condition);
             return result;
@@ -832,6 +850,8 @@ class ManageWorkSpaceService {
                 .populate('images.image')
                 .populate('seo.twitter.image')
                 .populate('seo.open_graph.image')
+                .populate('new_seo.twitter.image')
+                .populate('new_seo.open_graph.image')
                 .sort({ 'is_popular.order': 1 });
             result.count = await WorkSpace.countDocuments(condition);
             return result;
@@ -906,6 +926,8 @@ class ManageWorkSpaceService {
                 .populate('images.image')
                 .populate('seo.twitter.image')
                 .populate('seo.open_graph.image')
+                .populate('new_seo.twitter.image')
+                .populate('new_seo.open_graph.image')
                 .sort({
                     [priorityOrderField]: 1 // Ascending sort
                 })
@@ -930,6 +952,8 @@ class ManageWorkSpaceService {
                 .populate('images.image')
                 .populate('seo.twitter.image')
                 .populate('seo.open_graph.image')
+                .populate('new_seo.twitter.image')
+                .populate('new_seo.open_graph.image')
                 .limit(limit)
                 .skip(skip)
                 .sort({

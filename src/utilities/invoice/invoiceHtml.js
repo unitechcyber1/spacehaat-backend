@@ -403,7 +403,7 @@ ${forPdf ? PDF_EXPORT_STYLES : ''}
             <p class="inv-bank-title">Company Bank Details:-</p>
             ${bank.account_number ? `<div>Bank Account No: ${esc(bank.account_number)}</div>` : ''}
             ${bank.ifsc ? `<div>IFSC: ${esc(bank.ifsc)}</div>` : ''}
-            ${seller.gstin ? `<div>GSTIN: ${esc(seller.gstin)}</div>` : ''}
+            ${bank.account_name ? `<div>Account Name: ${esc(bank.account_name)}</div>` : ''}
             ${bank.bank_name ? `<div>Bank Name: ${esc(bank.bank_name)}</div>` : ''}
             ${bankAddressLine ? `<div>Bank Branch Address: ${esc(bankAddressLine)}</div>` : ''}
           </div>` : ''}

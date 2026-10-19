@@ -94,6 +94,21 @@ class ManageInvoiceService {
         throw { name: 'cofynd', code, message: msg };
     }
 
+    /**
+     * Normalise a manually entered invoice number and make sure no other invoice uses it.
+     * Returns undefined when not provided, '' when explicitly cleared.
+     */
+    async _resolveManualInvoiceNumber(value, excludeId) {
+        if (typeof value === 'undefined' || value === null) return undefined;
+        const trimmed = String(value).trim();
+        if (!trimmed) return '';
+        const filter = { invoice_number: trimmed };
+        if (excludeId) filter._id = { $ne: excludeId };
+        const clash = await Invoice.findOne(filter).select('_id').lean();
+        if (clash) this._throw(`Invoice number ${trimmed} is already used by another invoice`);
+        return trimmed;
+    }
+
     async _loadInvoiceForActor(id, actorUser) {
         if (!id || !ObjectId.isValid(id)) this._throw('Invalid id');
         const invoice = await Invoice.findById(id);
@@ -437,8 +452,11 @@ class ManageInvoiceService {
         terms,
         due_date,
         issue_date,
+        invoice_number,
         actorUser,
     }) {
+        const manualInvoiceNumber = await this._resolveManualInvoiceNumber(invoice_number);
+
         const { client } = await manageBillingClient.findOrCreate({
             billingClientId,
             ...billing_client,
@@ -497,6 +515,7 @@ class ManageInvoiceService {
         const invoice = await Invoice.create({
             invoice_type: invoice_type === 'proforma' ? 'proforma' : 'client',
             status: 'draft',
+            ...(manualInvoiceNumber ? { invoice_number: manualInvoiceNumber } : {}),
             party_type: 'client',
             billingClientId: client._id,
             seller_state_code: resolvedSellerCode,
@@ -586,6 +605,7 @@ class ManageInvoiceService {
         commercial,
         billingClientId,
         invoice_type,
+        invoice_number,
         actorUser,
     }) {
         const invoice = await this._loadInvoiceForActor(id, actorUser);
@@ -593,6 +613,18 @@ class ManageInvoiceService {
         // Disallow edits only once invoice is financially finalized.
         if (['paid', 'cancelled', 'voided'].includes(invoice.status)) {
             this._throw(`Invoices in status "${invoice.status}" cannot be edited`);
+        }
+
+        const manualInvoiceNumber = await this._resolveManualInvoiceNumber(invoice_number, invoice._id);
+        if (manualInvoiceNumber === '') {
+            // Clearing is only allowed on drafts (number is then auto-assigned on issue).
+            if (invoice.status !== 'draft') this._throw('Invoice number cannot be empty for issued invoices');
+            invoice.invoice_number = undefined;
+        } else if (manualInvoiceNumber && manualInvoiceNumber !== invoice.invoice_number) {
+            if (invoice.proforma_invoice_number && invoice.proforma_invoice_number === invoice.invoice_number) {
+                invoice.proforma_invoice_number = manualInvoiceNumber;
+            }
+            invoice.invoice_number = manualInvoiceNumber;
         }
 
         const billingProfile = await manageBillingProfile.getOrCreate();
@@ -651,7 +683,6 @@ class ManageInvoiceService {
     async issue({ id, invoice_type, created_by, actorUser }) {
         const invoice = await this._loadInvoiceForActor(id, actorUser);
         if (invoice.status !== 'draft') this._throw('Only draft invoices can be issued');
-        if (invoice.invoice_number) this._throw('Invoice already issued');
 
         if (Number(invoice.total) <= 0) {
             this._throw('Enter line item amounts before issuing (total must be > 0)');
@@ -676,11 +707,23 @@ class ManageInvoiceService {
             invoiceType: type,
             sellerStateCode: sellerCode,
         });
-        const { invoice_number, series_key } = await nextInvoiceNumber({ prefix });
-
-        invoice.invoice_number = invoice_number;
-        invoice.series_key = series_key;
-        if (type === 'proforma') invoice.proforma_invoice_number = invoice_number;
+        if (invoice.invoice_number) {
+            // Keep the number the admin entered manually on the draft.
+            await this._resolveManualInvoiceNumber(invoice.invoice_number, invoice._id);
+        } else {
+            // Auto-assign from the series, skipping any numbers already taken manually.
+            let next;
+            for (let attempt = 0; attempt < 50; attempt += 1) {
+                next = await nextInvoiceNumber({ prefix });
+                const taken = await Invoice.exists({ invoice_number: next.invoice_number, _id: { $ne: invoice._id } });
+                if (!taken) break;
+                next = null;
+            }
+            if (!next) this._throw('Could not allocate a unique invoice number');
+            invoice.invoice_number = next.invoice_number;
+            invoice.series_key = next.series_key;
+        }
+        if (type === 'proforma') invoice.proforma_invoice_number = invoice.invoice_number;
         invoice.status = 'issued';
         invoice.issue_date = new Date();
         if (!invoice.due_date) {

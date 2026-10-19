@@ -1,4 +1,4 @@
-import FileUtility from '../../utilities/file.js';
+import FileUtility, { folderFromS3Link } from '../../utilities/file.js';
 import models from '../../models/index.js';
 import crypto from 'crypto';
 const Image = models['Image'];
@@ -74,9 +74,7 @@ class FileUpload {
             const { id, s3_link, name } = req.body;
             let fileDetails = await Image.deleteOne({ _id: id });
             if (s3_link) {
-                let imageFolderName = s3_link.split('/');
-                imageFolderName = imageFolderName[imageFolderName.length - 2];
-                fileDetails = await FileUtility.deleteFile(name, imageFolderName);
+                fileDetails = await FileUtility.deleteFile(name, folderFromS3Link(s3_link));
             }
             return res.json({ success: true, message: "deleted", data: fileDetails });
         } catch (error) {
@@ -85,8 +83,7 @@ class FileUpload {
     }
 
     findFolderFromPath(s3_link) {
-        let imageFolderName = s3_link.split('/');
-        return imageFolderName[imageFolderName.length - 2];
+        return folderFromS3Link(s3_link);
     }
 }
 

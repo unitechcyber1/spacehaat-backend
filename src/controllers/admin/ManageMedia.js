@@ -1,5 +1,5 @@
 import manageCityServices from '../../services/admin/manage-media.js';
-import FileUtility from "../../utilities/file.js"
+import FileUtility, { folderFromS3Link } from "../../utilities/file.js"
 class ManageCity {
     constructor() {
         return {
@@ -86,9 +86,7 @@ class ManageCity {
             await manageCityServices.deleteCity(req.params);
     
             if (s3_link) {
-                let imageFolderName = s3_link.split('/');
-                imageFolderName = imageFolderName[imageFolderName.length - 2];
-                fileDetails = await FileUtility.deleteFile(name, imageFolderName);
+                fileDetails = await FileUtility.deleteFile(name, folderFromS3Link(s3_link));
             }
     
             res.status(200).json({

@@ -374,7 +374,9 @@ class ManageWorkSpaceService {
                 .populate('plans.image')
                 .populate('seo.twitter.image')
                 .populate('user')
-                .populate('seo.open_graph.image');
+                .populate('seo.open_graph.image')
+                .populate('new_seo.twitter.image')
+                .populate('new_seo.open_graph.image');
             return workSpaces;
         } catch (error) {
             throw error;
@@ -394,7 +396,9 @@ class ManageWorkSpaceService {
                 .populate('location.city')
                 .populate('location.micro_location')
                 .populate('plans.category')
-                .populate('seo.open_graph.image');
+                .populate('seo.open_graph.image')
+                .populate('new_seo.twitter.image')
+                .populate('new_seo.open_graph.image');
             return workSpaces;
         } catch (error) {
             throw error;
@@ -404,6 +408,7 @@ class ManageWorkSpaceService {
     async createWorkSpace({
         name,
         description,
+        new_description,
         email,
         ratings,
         spaceTag,
@@ -424,6 +429,7 @@ class ManageWorkSpaceService {
         plans,
         brand,
         seo,
+        new_seo,
         virtualSeo,
         user,
         added_by_user,
@@ -553,6 +559,7 @@ class ManageWorkSpaceService {
             return await WorkSpace.create({
                 name,
                 description,
+                new_description,
                 space_contact_details,
                 currency_code,
                 country_dbname,
@@ -576,6 +583,7 @@ class ManageWorkSpaceService {
                 slug: finalSlug,
                 brand,
                 seo,
+                new_seo,
                 virtualSeo,
                 user,
                 expireAt,
@@ -742,6 +750,7 @@ class ManageWorkSpaceService {
         id,
         name,
         description,
+        new_description,
         space_contact_details,
         email,
         ratings,
@@ -761,6 +770,7 @@ class ManageWorkSpaceService {
         rooms,
         plans,
         seo,
+        new_seo,
         virtualSeo,
         added_by_user,
         calendar,
@@ -781,6 +791,7 @@ class ManageWorkSpaceService {
             return await WorkSpace.findOneAndUpdate({ _id: id }, {
                 name,
                 description,
+                new_description,
                 space_contact_details,
                 currency_code,
                 country_dbname,
@@ -805,6 +816,7 @@ class ManageWorkSpaceService {
                 slug,
                 planStatus,
                 seo,
+                new_seo,
                 virtualSeo,
                 added_by_user,
                 calendar,

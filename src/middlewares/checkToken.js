@@ -72,6 +72,7 @@ class CheckToken {
                 'cities',
                 'brands',
                 'seo',
+                'newSeo',
                 'enquiryWithoutLogin',
                 'blogByType',
                 "spaceReviews",
@@ -97,6 +98,7 @@ class CheckToken {
                         checkPath === 'similarPlace' ||
                         checkPath === 'similarOfficePlace' ||
                         checkPath === 'seo' ||
+                        checkPath === 'newSeo' ||
                         checkPath === 'getSpacesByCity') { next(); return; }
                     return res.status(401).json({ type: 'Error', message: 'Invalid Token' });
                 } else {

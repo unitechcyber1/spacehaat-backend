@@ -6,6 +6,7 @@ import { mongoSchemaOptions } from '../utilities/constants.js';
 const WorkSpaceSchema = new Schema({
     name: { type: String, required: true },
     description: String,
+    new_description: String,
     currency_code: String,
     country_dbname: String,
     email: String,
@@ -46,6 +47,33 @@ const WorkSpaceSchema = new Schema({
         }
     },
     seo: {
+        title: { type: String },
+        description: { type: String },
+        robots: String,
+        keywords: String,
+        url: String,
+        status: {
+            type: Boolean,
+            default: true
+        },
+        twitter: {
+            title: String,
+            description: String,
+            image: {
+                type: Schema.Types.ObjectId,
+                ref: 'Image'
+            }
+        },
+        open_graph: {
+            title: String,
+            description: String,
+            image: {
+                type: Schema.Types.ObjectId,
+                ref: 'Image'
+            }
+        }
+    },
+    new_seo: {
         title: { type: String },
         description: { type: String },
         robots: String,

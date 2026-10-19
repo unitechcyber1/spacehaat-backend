@@ -10,6 +10,20 @@ import path from 'path';
  * 3. {PREFIX}_PATH — filesystem path to the JSON file (local dev; file must stay gitignored).
  * 4. Default filename in project root only if that file exists (local; gitignored).
  */
+export function createGoogleSheetsUnavailableClient(prefix) {
+    return {
+        spreadsheets: {
+            values: {
+                append: async () => {
+                    throw new Error(
+                        `Google Sheets integration is not configured for ${prefix}. Set ${prefix}_BASE64, ${prefix}_JSON, or ${prefix}_PATH in the environment before using sheet uploads.`
+                    );
+                }
+            }
+        }
+    };
+}
+
 export function loadGoogleServiceAccountJson({ prefix, defaultFilename }) {
     const jsonVar = `${prefix}_JSON`;
     const base64Var = `${prefix}_BASE64`;
@@ -21,7 +35,8 @@ export function loadGoogleServiceAccountJson({ prefix, defaultFilename }) {
             const decoded = Buffer.from(b64.trim(), 'base64').toString('utf8');
             return JSON.parse(decoded);
         } catch (e) {
-            throw new Error(`Invalid ${base64Var}: ${e.message}`);
+            console.warn(`[Google Sheets] Ignoring invalid ${base64Var}: ${e.message}`);
+            return null;
         }
     }
 
@@ -30,7 +45,8 @@ export function loadGoogleServiceAccountJson({ prefix, defaultFilename }) {
         try {
             return JSON.parse(jsonRaw);
         } catch (e) {
-            throw new Error(`Invalid ${jsonVar}: ${e.message}`);
+            console.warn(`[Google Sheets] Ignoring invalid ${jsonVar}: ${e.message}`);
+            return null;
         }
     }
 
@@ -42,11 +58,13 @@ export function loadGoogleServiceAccountJson({ prefix, defaultFilename }) {
         : path.join(process.cwd(), defaultFilename);
 
     if (fs.existsSync(candidate)) {
-        return JSON.parse(fs.readFileSync(candidate, 'utf8'));
+        try {
+            return JSON.parse(fs.readFileSync(candidate, 'utf8'));
+        } catch (e) {
+            console.warn(`[Google Sheets] Ignoring invalid JSON in ${candidate}: ${e.message}`);
+            return null;
+        }
     }
 
-    throw new Error(
-        `Missing Google credentials (${prefix}). Set ${base64Var} (recommended) or ${jsonVar} or ${pathVar} ` +
-            `in your environment. Do not commit service account JSON to git.`
-    );
+    return null;
 }
