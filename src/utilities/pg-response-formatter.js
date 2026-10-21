@@ -135,6 +135,7 @@ export function formatPgForFrontend(doc) {
         postedBy: doc.postBy || '',
         contactSchedule: doc.selectTimeSchedule || '',
         description: doc.description || '',
+        new_description: doc.new_description || '',
         verified: !!doc.verified,
         status: doc.status || '',
         priority: doc.priority

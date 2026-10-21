@@ -16,6 +16,12 @@ function buildAllowedOriginsSet() {
         'https://spacehaat.com',
         'https://www.spacehaat.com',
         'https://api.spacehaat.com',
+        'https://spacewallah.com',
+        'https://www.spacewallah.com',
+        'https://admin.spacewallah.com',
+        'https://api.spacewallah.com',
+        // Admin panel on Vercel — exact origin only (a *.vercel.app wildcard would let any Vercel app in).
+        'https://spacehaat-admin.vercel.app',
         'http://localhost:3000',
         'http://localhost:5173',
         'http://127.0.0.1:5173',
@@ -50,6 +56,8 @@ export function isOriginAllowed(origin) {
         if (
             hostname === 'spacehaat.com' ||
             hostname.endsWith('.spacehaat.com') ||
+            hostname === 'spacewallah.com' ||
+            hostname.endsWith('.spacewallah.com') ||
             hostname === 'admin.spacehaat.com' ||
             hostname.endsWith('.admin.spacehaat.com')
         ) {

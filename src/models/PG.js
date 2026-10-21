@@ -200,6 +200,7 @@ const PGSchema = new Schema(
         endTime: String,
 
         description: String,
+        new_description: String,
 
         form_status: String,
         verified: { type: Boolean, default: false },
