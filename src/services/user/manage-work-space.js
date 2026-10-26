@@ -7,6 +7,7 @@ import manageWorkSpaceService from '../admin/manage-work-space.js';
 const WorkSpace = models['WorkSpace'];
 const MicroLocation = models['MicroLocation'];
 const Category = models['Category'];
+const Brand = models['Brand'];
 
 const blackListWS = [
     'abl-workspaces-dlf-cyber-hub-gurugram',
@@ -89,6 +90,28 @@ class ManageWorkSpaceService {
             getNearBySpaces: this.getNearBySpaces.bind(this)
         }
     }
+    /**
+     * Resolve ?brand / ?brand_name to brand ObjectIds.
+     * Returns null when no brand filter was requested, [] when nothing matched.
+     */
+    async _resolveBrandIds(brand, brandName) {
+        const or = [];
+        const value = brand != null ? String(brand).trim() : '';
+        if (value) {
+            const id = parseObjectIdParam(value);
+            if (id) or.push({ _id: id });
+            or.push({ slug: value.toLowerCase() });
+            or.push({ name: { $regex: `^${escapeRegex(value)}$`, $options: 'i' } });
+        }
+        const partial = brandName != null ? String(brandName).trim() : '';
+        if (partial) {
+            or.push({ name: { $regex: escapeRegex(partial), $options: 'i' } });
+        }
+        if (!or.length) return null;
+        const brands = await Brand.find({ $or: or }, { _id: 1 }).lean();
+        return brands.map((b) => b._id);
+    }
+
     async getWorkSpaces({
         limit = 10,
         sortBy = 'priority.overall.order',
@@ -113,7 +136,9 @@ class ManageWorkSpaceService {
         space_type,
         for_virtual,
         locations,
-        virtual
+        virtual,
+        brand,
+        brand_name
     }) {
         try {
             let condition = { status: 'approve', slug: { $nin: blackListWS } };
@@ -144,6 +169,10 @@ class ManageWorkSpaceService {
             if (enterprise_availability) condition['enterprise_availability'] = enterprise_availability;
             if (small_team_availability) condition['small_team_availability'] = small_team_availability;
             if (slug) condition['slug'] = slug;
+
+            // Brand filter: ?brand=<id | slug | exact name>, ?brand_name=<partial name>
+            const brandIds = await this._resolveBrandIds(brand, brand_name);
+            if (brandIds) condition['brand'] = { $in: brandIds };
 
             if (name != null && String(name).trim() !== '') {
                 const term = escapeRegex(String(name).trim());
@@ -429,14 +458,16 @@ class ManageWorkSpaceService {
                     },
                     {
                         $sort: {
-                            virtual_order_sort: 1
+                            virtual_order_sort: 1,
+                            _id: 1
                         }
                     }
                 );
             } else {
+                // `_id` breaks ties (most spaces share a priority order) so $skip pages don't overlap.
                 aggregatePipeline.push(
                     {
-                        $sort: { [sortBy]: sortType }
+                        $sort: { [sortBy]: sortType, _id: 1 }
                     }
                 );
             }

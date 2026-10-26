@@ -328,10 +328,12 @@ class ManagePgService {
                 [priorityParsed.priorityIsActiveField]: -1,
                 [priorityParsed.priorityOrderField]: 1,
                 [sortField]: sortDir,
+                _id: sortDir,
             };
         } else {
-            sort = { [sortField]: sortDir };
+            sort = { [sortField]: sortDir, _id: sortDir };
         }
+        // `_id` breaks ties (bulk imports share one added_on) so skip/limit pages don't overlap.
 
         const populateQuery = PG.find(condition)
             .populate('images.image')

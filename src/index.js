@@ -66,10 +66,21 @@ mongoose.connection.on('error', (err) => {
 
 mongoose.Promise = global.Promise;
 
-mongoose.connect(database.uri).catch((err) => {
-    console.error('[Database] MongoDB initial connection failed:', err.message);
-    logger.error(err, 'Database');
-});
+// Mongoose does not retry a failed *initial* connect; without this, every query
+// buffers and fails with "buffering timed out after 10000ms" until a restart.
+const connectWithRetry = (attempt = 1) => {
+    mongoose
+        .connect(database.uri, { serverSelectionTimeoutMS: 15000 })
+        .catch((err) => {
+            const delay = Math.min(30000, 2000 * attempt);
+            console.error(
+                `[Database] MongoDB initial connection failed (attempt ${attempt}): ${err.message}. Retrying in ${delay / 1000}s`
+            );
+            logger.error(err, 'Database');
+            setTimeout(() => connectWithRetry(attempt + 1), delay);
+        });
+};
+connectWithRetry();
 
 /*
      XSS Security
