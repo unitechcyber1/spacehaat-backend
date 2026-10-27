@@ -246,9 +246,12 @@ function generateInvoicePdfKitBuffer(invoice) {
         try {
             const seller = invoice.billing_snapshot?.seller || {};
             const buyer = invoice.billing_snapshot?.buyer || {};
-            const shipTo = invoice.billing_snapshot?.ship_to;
+            // Always render Ship To (same as HTML template): fall back to Bill To when no separate ship-to.
+            const shipTo = hasShipToSection(invoice.billing_snapshot?.ship_to)
+                ? invoice.billing_snapshot.ship_to
+                : buyer;
             const lines = invoice.line_items || [];
-            const hasShipTo = hasShipToSection(shipTo);
+            const hasShipTo = true;
             const spacing = getSpacing(hasShipTo);
 
             const doc = new PDFDocument({
