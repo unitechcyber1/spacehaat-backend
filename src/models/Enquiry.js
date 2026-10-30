@@ -51,6 +51,10 @@ const EnquirySchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'OfficeSpace'
     },
+    managed_office: {
+        type: Schema.Types.ObjectId,
+        ref: 'ManagedOffice'
+    },
     user: {
         type: Schema.Types.ObjectId,
         ref: 'User'

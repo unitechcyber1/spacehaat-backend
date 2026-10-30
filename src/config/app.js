@@ -18,6 +18,8 @@ const app = {
     amadeusGrantType: process.env.AMADEUS_GRANT_TYPE,
     defaultPhoneNumbers: process.env.DEFAULT_PHONE_NUMBERS,
     defaultOTP: process.env.DEFAULT_OTP,
+    /** OAuth Web Client ID used by "Continue with Google" on list-your-space. */
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
     razerPay: {
         key: process.env.RAZER_PAY_KEY,
         secret: process.env.RAZER_PAY_SECRET,

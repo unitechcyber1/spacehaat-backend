@@ -25,6 +25,7 @@ import redis from './utilities/redis.js';
 import mongoose from 'mongoose';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { restrictHostAccess } from './middlewares/hostAccess.js';
 import adminRoutes from './routes/admin/index.js'
 import userRoutes from './routes/user/index.js'
 import whatsappRoutes from './routes/admin/manageWhatsapp.js'
@@ -182,7 +183,8 @@ app.get('/health', async (req, res) => {
 
 app.use('/img', express.static(path.join(__dirname.split('\src')[0], 'files/images')));
 // CheckToken.jwtVerify , checkPermissions,  
-app.use('/api/admin', CheckToken.jwtAdminVerify, Sanatize, adminRoutes);
+// Hosts get /api/admin tokens too; restrictHostAccess limits them to their own listings.
+app.use('/api/admin', CheckToken.jwtAdminVerify, restrictHostAccess, Sanatize, adminRoutes);
 app.use('/api/user', verifyPublicApiClient, Sanatize, userRoutes);
 // Public Twilio webhook (validated via Twilio signature)
 app.use('/api/twilio', CheckToken.jwtAdminVerify, Sanatize, whatsappRoutes);

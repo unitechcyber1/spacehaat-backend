@@ -17,6 +17,7 @@ class AdminAuth {
             signUpUser: this.signUpUser.bind(this),
             validateUser: this.validateUser.bind(this),
             validateVendorUser: this.validateVendorUser.bind(this),
+            vendorGoogleLogin: this.vendorGoogleLogin.bind(this),
             resendOTP: this.resendOTP.bind(this),
             logout: this.logout.bind(this),
             createUser: this.createUser.bind(this),
@@ -215,6 +216,26 @@ class AdminAuth {
         }
     }
 
+
+    async vendorGoogleLogin(req, res, next) {
+        try {
+            const result = await auth.googleVendorLogin(req.body || {});
+            if (result.needsPhone) {
+                return res.status(200).json({
+                    message: 'Mobile number required to finish sign up',
+                    needs_phone: true,
+                    profile: result.profile
+                });
+            }
+            return res.status(200).json({
+                message: 'Signed in with Google',
+                token: result.token,
+                data: result.user
+            });
+        } catch (e) {
+            next(e)
+        }
+    }
 
     async resendOTP(req, res, next) {
         try {

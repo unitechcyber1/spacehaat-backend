@@ -7,6 +7,10 @@ const User = models['User'];
 
 import jwt from 'jsonwebtoken';
 import aes256 from 'aes256';
+import { OAuth2Client } from 'google-auth-library';
+
+const googleClient = new OAuth2Client();
+const MAX_OTP_ATTEMPTS = 5;
 
 
 class UserAuthService {
@@ -16,6 +20,7 @@ class UserAuthService {
             authenticateVendor: this.authenticateVendor.bind(this),
             createToken: this.createToken.bind(this),
             createVendorToken: this.createVendorToken.bind(this),
+            googleVendorLogin: this.googleVendorLogin.bind(this),
             createVendorTokenForRegister: this.createVendorTokenForRegister.bind(this),
             signUpUser: this.signUpUser.bind(this),
             validateUser: this.validateUser.bind(this),
@@ -40,7 +45,7 @@ class UserAuthService {
                 user = await User.create({ phone_number, dial_code });
             }
             const otp = this._randomCodeGenerator();
-            await User.findOneAndUpdate({ phone_number }, { otp_expires: new Date(), otp });
+            await User.findOneAndUpdate({ phone_number }, { otp_expires: new Date(), otp, otp_attempts: 0 });
             if (this._forTestingPurpose(user.phone_number)) {
                 return user._id; /** for testing purpose default number is entered */
             }
@@ -60,7 +65,7 @@ class UserAuthService {
                 this._throwException(`Your number is not registered, please signup.`);
             }
             const otp = this._randomCodeGenerator();
-            await User.findOneAndUpdate({ phone_number }, { otp_expires: new Date(), otp });
+            await User.findOneAndUpdate({ phone_number }, { otp_expires: new Date(), otp, otp_attempts: 0 });
             if (this._forTestingPurpose(user.phone_number)) {
                 return user._id; /** for testing purpose default number is entered */
             }
@@ -80,11 +85,22 @@ class UserAuthService {
             if (!user) {
                 this._throwException(`opps! user not exists`);
             }
+            // A code is valid for 30 minutes, for one use, with at most 5 wrong tries.
+            if (!user.otp || !this._checkExpiry(user)) {
+                this._throwException('OTP expired. Please request a new code.');
+            }
+            if ((user.otp_attempts || 0) >= MAX_OTP_ATTEMPTS) {
+                this._throwException('Too many wrong attempts. Please request a new code.');
+            }
             if (user.otp === +otp) {
                 const message = 'OTP verified successfully';
-                await User.findOneAndUpdate({ phone_number: phone_number }, { is_mobile_verified: true });
+                await User.findOneAndUpdate(
+                    { phone_number: phone_number },
+                    { is_mobile_verified: true, otp: null, otp_attempts: 0 }
+                );
                 return { user, message };
             } else {
+                await User.updateOne({ _id: user._id }, { $inc: { otp_attempts: 1 } });
                 this._throwException('OtP mismatched!!');
             }
         } catch (error) {
@@ -119,7 +135,7 @@ class UserAuthService {
             obj.role = await aes256.encrypt(encryptedKey, role.toString());
             obj.phone_number = await aes256.encrypt(encryptedKey, user.phone_number.toString());
             const otp = this._randomCodeGenerator();
-            await User.findOneAndUpdate({ phone_number: user.phone_number }, { otp_expires: new Date(), otp });
+            await User.findOneAndUpdate({ phone_number: user.phone_number }, { otp_expires: new Date(), otp, otp_attempts: 0 });
             if (this._forTestingPurpose(user.phone_number)) {
                 return user._id; /** for testing purpose default number is entered */
             }
@@ -152,6 +168,88 @@ class UserAuthService {
         } catch (e) {
             throw (e)
         }
+    }
+
+    /**
+     * "Continue with Google" for hosts. Verifies the Google ID token, then finds the host by
+     * email or creates one. A new host must also give a mobile number (returns `needsPhone`).
+     * A number that already belongs to another account is never linked automatically, so a
+     * Google login cannot take over someone else's phone-based account.
+     */
+    async googleVendorLogin({ credential, name, phone_number, dial_code }) {
+        if (!app.googleClientId) {
+            this._throwException('Google sign-in is not configured.');
+        }
+        if (!credential) {
+            this._throwException('Google sign-in failed. Please try again.');
+        }
+
+        let payload;
+        try {
+            const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: app.googleClientId });
+            payload = ticket.getPayload();
+        } catch (e) {
+            this._throwException('Google sign-in expired or is invalid. Please try again.');
+        }
+        if (!payload?.email || !payload.email_verified) {
+            this._throwException('Your Google account email is not verified.');
+        }
+
+        const email = payload.email.trim().toLowerCase();
+        const emailRe = new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+        // Email is not unique on User: prefer a host account, then the newest.
+        const matches = await User.find({ email: emailRe }).sort({ _id: -1 }).limit(5);
+        let user = matches.find((u) => u.role === 'vendor' || (u.roles || []).includes('vendor')) || matches[0];
+
+        if (!user) {
+            const phone = String(phone_number || '').replace(/\D/g, '').slice(-10);
+            if (phone.length !== 10) {
+                return { needsPhone: true, profile: { name: payload.name || '', email } };
+            }
+            const phoneOwner = await User.findOne({ phone_number: phone });
+            if (phoneOwner) {
+                this._throwException(
+                    'This mobile number is already registered with another account. Sign in with the Google account that uses the same email, or contact us to link them.'
+                );
+            }
+            user = await User.create({
+                name: String(name || payload.name || '').trim(),
+                email,
+                phone_number: phone,
+                dial_code: dial_code || '+91',
+                role: 'vendor',
+                roles: ['vendor'],
+                login_type: 'google',
+                is_email_verified: true,
+                is_profile_updated: true,
+            });
+        } else {
+            if (user.is_active === false) {
+                this._throwException('This account is disabled. Please contact us.');
+            }
+            const updates = { is_email_verified: true };
+            if (!user.name && (name || payload.name)) updates.name = String(name || payload.name).trim();
+            // Promote plain users to hosts; never demote admins or sales accounts.
+            if (!user.role || user.role === 'user') updates.role = 'vendor';
+            user = await User.findByIdAndUpdate(user._id, updates, { new: true });
+        }
+
+        const token = await this._signVendorToken(user);
+        return { user, token };
+    }
+
+    /** Same token shape as {@link createVendorToken}, without changing the user's role. */
+    async _signVendorToken(user) {
+        const encryptedKey = requireEncryptionKey();
+        const obj = {
+            id: await aes256.encrypt(encryptedKey, user._id.toString()),
+            role: await aes256.encrypt(encryptedKey, String(user.role || 'vendor')),
+            phone_number: await aes256.encrypt(encryptedKey, String(user.phone_number || '')),
+            userId: user._id,
+        };
+        const token = jwt.sign(obj, app.superSecretForAdmin, { expiresIn: '30d' });
+        await redis.set(user.id, token);
+        return token;
     }
 
     async signUpUser({ id, name, gender, email, dob }) {
@@ -200,7 +298,7 @@ class UserAuthService {
         try {
             let user = await User.findOne({ phone_number });
             const otp = this._randomCodeGenerator();
-            await User.findOneAndUpdate({ _id: user.id }, { otp })
+            await User.findOneAndUpdate({ _id: user.id }, { otp, otp_expires: new Date(), otp_attempts: 0 })
             /** TODO will change the template for resend code  */
             const result = await messageService.sendOTP(phone_number, otp, dial_code);
             return result.data;
@@ -264,7 +362,7 @@ class UserAuthService {
             }
             const otp = this._randomCodeGenerator();
             // const otp = "0000"
-            await User.findOneAndUpdate({ _id: user.id }, { otp });
+            await User.findOneAndUpdate({ _id: user.id }, { otp, otp_expires: new Date(), otp_attempts: 0 });
             await messageService.sendOTP(phone_number, otp, dial_code);
             return user;
         } catch (error) {

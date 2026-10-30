@@ -191,6 +191,8 @@ const UserSchema = new Schema({
         required: false
     },
     otp: Number,
+    /** Wrong OTP entries since the last code was sent (locks after 5). */
+    otp_attempts: { type: Number, default: 0 },
     otp_expires: {
         type: Date,
         default: new Date()

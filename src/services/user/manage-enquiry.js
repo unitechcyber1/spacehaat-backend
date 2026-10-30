@@ -175,6 +175,7 @@ class ManageEnquiryService {
         work_space,
         office_space,
         living_space,
+        managed_office,
         id: userId,
         mx_Page_Url,
         mx_BudgetPrice,
@@ -336,6 +337,7 @@ class ManageEnquiryService {
                 user: userId || null,
                 office_space,
                 living_space,
+                managed_office: /^[a-f0-9]{24}$/i.test(String(managed_office || '')) ? managed_office : undefined,
                 other_info: {
                     email,
                     name,

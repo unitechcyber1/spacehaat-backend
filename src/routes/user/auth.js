@@ -12,6 +12,7 @@ router.post('/signUp', UserAuthController.signUpUser)
     .post('/vendorSignUp', UserAuthController.vendorSignUp)
     .post('/vendorLogin', UserAuthController.vendorLogin)
     .post('/validateVendor', UserAuthController.validateVendorUser)
+    .post('/vendorGoogleLogin', UserAuthController.vendorGoogleLogin)
     .post('/manageUser', UserAuthController.manageUser)
     .put('/updateUser', UserAuthController.updateUser)
 
