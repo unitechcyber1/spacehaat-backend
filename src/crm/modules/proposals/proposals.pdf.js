@@ -20,9 +20,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function resolveLogoPath() {
     const candidates = [
-        path.resolve(process.cwd(), 'assets/spacehaat-logo.png'),
-        path.resolve(__dirname, '../../../assets/spacehaat-logo.png'),
-        path.resolve(__dirname, '../../../../assets/spacehaat-logo.png'),
+        path.resolve(process.cwd(), 'assets/spacewallah-logo.png'),
+        path.resolve(__dirname, '../../../assets/spacewallah-logo.png'),
+        path.resolve(__dirname, '../../../../assets/spacewallah-logo.png'),
     ];
     return candidates.find((p) => fs.existsSync(p)) || null;
 }
@@ -478,7 +478,7 @@ export async function buildProposalPdf(data) {
         doc.fillColor(INK)
             .fontSize(17)
             .font('Helvetica-Bold')
-            .text('Spacehaat', left + 36, y + 2);
+            .text('SpaceWallah', left + 36, y + 2);
         doc.fillColor(MUTED)
             .fontSize(9)
             .font('Helvetica')
@@ -556,7 +556,7 @@ export async function buildProposalPdf(data) {
             doc.fillColor('#9A968E')
                 .fontSize(8)
                 .font('Helvetica')
-                .text('Spacehaat · Real-time workspace inventory · proposals@spacehaat.in', left, fy, {
+                .text('SpaceWallah · Real-time workspace inventory · www.spacewallah.com', left, fy, {
                     width: pageW,
                     align: 'left',
                     lineBreak: false,

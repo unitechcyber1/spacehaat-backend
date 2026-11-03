@@ -535,7 +535,7 @@ export async function getPublicProposal(token) {
                 company: doc.client?.company || '',
             },
             coverNote: doc.coverNote || '',
-            sentBy: doc.sentBy || 'Spacehaat',
+            sentBy: doc.sentBy || 'SpaceWallah',
             pdfUrl: doc.pdfUrl || '',
             expiresAt: doc.shareExpiresAt || null,
             summary: doc.summary || {},

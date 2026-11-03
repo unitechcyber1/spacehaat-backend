@@ -134,6 +134,37 @@ export async function notifyMembersOfNewLead(input) {
     });
 }
 
+/**
+ * Notify about an enquiry submitted on the website.
+ * Goes to the sales users it was routed to plus every active admin.
+ */
+export async function notifyWebsiteEnquiry(enquiry) {
+    const assigned = (enquiry.assignedUsers || []).map(String);
+    const recipients = await User.find({
+        ...activeStaffFilter,
+        $or: [{ role: 'admin' }, { _id: { $in: assigned.filter((id) => Types.ObjectId.isValid(id)) } }],
+    })
+        .select('_id')
+        .lean()
+        .exec();
+    if (!recipients.length) return;
+
+    const name = enquiry.other_info?.name?.trim() || 'Website visitor';
+    const details = [enquiry.space_type?.replace(/^Web /, ''), enquiry.microlocation, enquiry.city]
+        .filter(Boolean)
+        .join(' · ');
+
+    await Promise.all(
+        recipients.map((u) =>
+            notifyUser(String(u._id), {
+                title: 'New website enquiry',
+                body: details ? `${name} · ${details}` : name,
+                data: { type: 'lead_created', leadId: String(enquiry._id) },
+            }),
+        ),
+    );
+}
+
 export async function notifyLeadReminder(assigneeId, leadTitle, leadId) {
     return notifyUser(assigneeId, {
         title: 'Lead follow-up due',

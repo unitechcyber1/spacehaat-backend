@@ -9,6 +9,7 @@ import messageService from '../../utilities/messageService.js';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import { virtualOfficeLocations } from '../../utilities/virtualOfficeOptions.js';
+import { notifyWebsiteEnquiry } from '../../crm/modules/devices/devices.service.js';
 dotenv.config();
 const Enquiry = models['Enquiry'];
 const User = models['User'];
@@ -345,6 +346,7 @@ class ManageEnquiryService {
                 }
             });
             // await aws.sendMail(getTemplateObject.adminParams);
+            notifyWebsiteEnquiry(enquiry).catch((err) => console.error('[push] website enquiry notify failed', err));
             return enquiry;
         } catch (error) {
             throw (error);

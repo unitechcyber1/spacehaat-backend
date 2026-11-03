@@ -16,6 +16,7 @@
  * Usage:
  *   HAAT_MONGODB_URI=... node src/scripts/migrate-haat-crm.js            Preview, no writes.
  *   HAAT_MONGODB_URI=... node src/scripts/migrate-haat-crm.js --apply    Write.
+ *   Add --skip-leads to leave the leads out; everything else is still copied.
  */
 import '../config/loadEnv.js';
 import mongoose from 'mongoose';
@@ -25,6 +26,7 @@ import { backfillEnquiries } from '../crm/modules/leads/leads.backfill.js';
 import { enquirySource, enquiryStage } from '../crm/modules/leads/leads.model.js';
 
 const apply = process.argv.includes('--apply');
+const skipLeads = process.argv.includes('--skip-leads');
 const BATCH = 500;
 const SALES_ROLE = 'sales';
 
@@ -194,7 +196,7 @@ async function main() {
 
     const backfilled = await backfillEnquiries(target.collection('enquiries'), { dryRun: !apply });
     console.log('existing enquiries backfilled:', backfilled);
-    console.log('leads -> enquiries:', await copyLeads(source, target, idMap));
+    console.log('leads -> enquiries:', skipLeads ? 'skipped' : await copyLeads(source, target, idMap));
     console.log('listings:', await copyCollection(source, target, 'listings', [], idMap));
     console.log('proposals:', await copyCollection(source, target, 'proposals', ['createdBy'], idMap));
     console.log('activities:', await copyCollection(source, target, 'activities', [], idMap));
