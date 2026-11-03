@@ -2,7 +2,8 @@ import { Types } from 'mongoose';
 
 import { User, activeStaffFilter } from '../users/users.model.js';
 import { Device } from './devices.model.js';
-import { CLOSED_ENQUIRY_STAGES, Lead, toLead } from '../leads/leads.model.js';
+import { CLOSED_ENQUIRY_STAGES, Lead, cityMatcher, toLead } from '../leads/leads.model.js';
+import { PERMISSIONS } from '../auth/permissions.js';
 import { env } from '../../config/env.js';
 
 async function sendExpoPush(tokens, message) {
@@ -135,16 +136,23 @@ export async function notifyMembersOfNewLead(input) {
 }
 
 /**
- * Notify about an enquiry submitted on the website.
- * Goes to the sales users it was routed to plus every active admin.
+ * Notify about an enquiry submitted on the website: every active admin, the users it was routed to,
+ * and staff with lead access whose cities include the enquiry's city.
+ * Only admins and assignees can open the lead, so the others get the alert without a link to it.
  */
 export async function notifyWebsiteEnquiry(enquiry) {
-    const assigned = (enquiry.assignedUsers || []).map(String);
+    const assigned = (enquiry.assignedUsers || []).map(String).filter((id) => Types.ObjectId.isValid(id));
     const recipients = await User.find({
         ...activeStaffFilter,
-        $or: [{ role: 'admin' }, { _id: { $in: assigned.filter((id) => Types.ObjectId.isValid(id)) } }],
+        $or: [
+            { role: 'admin' },
+            { _id: { $in: assigned } },
+            ...(enquiry.city
+                ? [{ cities: cityMatcher(enquiry.city), permissions: { $in: [PERMISSIONS.LEADS_READ, PERMISSIONS.LEADS_WRITE] } }]
+                : []),
+        ],
     })
-        .select('_id')
+        .select('_id role')
         .lean()
         .exec();
     if (!recipients.length) return;
@@ -153,15 +161,17 @@ export async function notifyWebsiteEnquiry(enquiry) {
     const details = [enquiry.space_type?.replace(/^Web /, ''), enquiry.microlocation, enquiry.city]
         .filter(Boolean)
         .join(' · ');
+    const leadId = String(enquiry._id);
 
     await Promise.all(
-        recipients.map((u) =>
-            notifyUser(String(u._id), {
+        recipients.map((u) => {
+            const canOpen = u.role === 'admin' || assigned.includes(String(u._id));
+            return notifyUser(String(u._id), {
                 title: 'New website enquiry',
                 body: details ? `${name} · ${details}` : name,
-                data: { type: 'lead_created', leadId: String(enquiry._id) },
-            }),
-        ),
+                data: canOpen ? { type: 'lead_created', leadId } : { type: 'website_enquiry' },
+            });
+        }),
     );
 }
 

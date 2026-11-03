@@ -133,11 +133,16 @@ function asLeadFilter(q) {
     return q;
 }
 
+/** Leads assigned to a member stay visible to them even outside their city or space-type scope. */
+function orAssignedTo(user, filter) {
+    return { $or: [filter, { assignedUsers: new Types.ObjectId(user.id) }] };
+}
+
 function cityFilterForUser(user, city) {
     const scope = cityScope(user);
     if (scope !== null) {
-        if (!scope.length) return { city: { $in: [] } };
-        return { city: { $in: scope.map(cityMatcher) } };
+        if (!scope.length) return orAssignedTo(user, { city: { $in: [] } });
+        return orAssignedTo(user, { city: { $in: scope.map(cityMatcher) } });
     }
     if (city && city !== 'All cities') return { city: cityMatcher(city) };
     return {};
@@ -147,14 +152,14 @@ function spaceTypeFilterForUser(user, spaceType) {
     const scope = spaceTypeScope(user);
     if (scope !== null) {
         // Include legacy leads with no spaceType as CW
-        return {
+        return orAssignedTo(user, {
             $or: [
                 { spaceType: { $in: scope } },
                 ...(scope.includes('CW')
                     ? [{ spaceType: { $exists: false } }, { spaceType: null }, { spaceType: '' }]
                     : []),
             ],
-        };
+        });
     }
     if (spaceType && LEAD_SPACE_TYPES.includes(spaceType)) {
         return { spaceType };
@@ -476,7 +481,7 @@ export async function updateLead(id, input, actor) {
         }
         const nextSpaceType = input.spaceType || before.spaceType || DEFAULT_LEAD_SPACE_TYPE;
         if (input.assigneeId) {
-            await assertAssigneeEligible(input.assigneeId, before.city, nextSpaceType);
+            await assertAssigneeEligible(input.assigneeId);
             setAssignee(doc, new Types.ObjectId(input.assigneeId));
         } else {
             const autoId = await resolveLeadAssignee(before.city, actor, null, nextSpaceType);

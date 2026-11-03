@@ -23,7 +23,7 @@ function memberMatchesSpaceType(user, spaceType) {
     return types.includes(spaceType);
 }
 
-export async function assertAssigneeEligible(assigneeId, city, spaceType) {
+export async function assertAssigneeEligible(assigneeId) {
     if (!Types.ObjectId.isValid(assigneeId)) {
         throw new ApiError(400, 'Invalid assignee', 'INVALID_INPUT');
     }
@@ -38,16 +38,9 @@ export async function assertAssigneeEligible(assigneeId, city, spaceType) {
 
     if (user.role === 'admin') return user;
 
+    // City and space-type scope only drive auto-assignment; a manual pick may go to anyone with lead access.
     if (!userCanTakeLeads(user.permissions || [])) {
         throw new ApiError(400, 'Assignee does not have lead access', 'INVALID_INPUT');
-    }
-
-    if (city && !worksInCity(user, city)) {
-        throw new ApiError(400, `Assignee is not scoped to ${city}`, 'INVALID_INPUT');
-    }
-
-    if (spaceType && !memberMatchesSpaceType(user, spaceType)) {
-        throw new ApiError(400, `Assignee is not scoped to space type ${spaceType}`, 'INVALID_INPUT');
     }
 
     return user;
@@ -93,7 +86,7 @@ export async function findAutoAssigneeForCity(city, spaceType) {
 export async function resolveLeadAssignee(city, actor, requestedAssigneeId, spaceType) {
     if (requestedAssigneeId && Types.ObjectId.isValid(requestedAssigneeId)) {
         if (hasPermission(actor, PERMISSIONS.LEADS_ASSIGN) || isAdmin(actor)) {
-            await assertAssigneeEligible(requestedAssigneeId, city, spaceType);
+            await assertAssigneeEligible(requestedAssigneeId);
             return requestedAssigneeId;
         }
         if (requestedAssigneeId === actor.id) return actor.id;
@@ -112,13 +105,8 @@ export async function listLeadAssignees(city, actor, spaceType) {
         .lean()
         .exec();
 
-    const eligible = users.filter((u) => {
-        if (u.role === 'admin') return true;
-        if (!userCanTakeLeads(u.permissions || [])) return false;
-        if (city && !worksInCity(u, city)) return false;
-        if (spaceType && !memberMatchesSpaceType(u, spaceType)) return false;
-        return true;
-    });
+    // Out-of-scope staff are listed too, after the matching ones.
+    const eligible = users.filter((u) => u.role === 'admin' || userCanTakeLeads(u.permissions || []));
 
     const items = await Promise.all(
         eligible.map(async (u) => {
