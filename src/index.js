@@ -35,6 +35,7 @@ import { limiter } from './config/rateLimiter.js';
 import compression from 'compression';
 import cron from 'node-cron';
 import models from './models/index.js';
+import { createCrmRouter, crmEnabled, startCrmBackgroundJobs } from './crm/index.js';
 
 const WorkSpace = models.WorkSpace;
 const __filename = fileURLToPath(import.meta.url);
@@ -115,6 +116,14 @@ app.use(function (err, req, res, next) {
     }
 })
 
+
+// Sales CRM API for haat-web-app and haat-mobile-app. Stays above express-fileupload: its image uploads use multer.
+if (crmEnabled) {
+    app.use('/api/v1', createCrmRouter());
+    mongoose.connection.once('connected', startCrmBackgroundJobs);
+} else {
+    console.warn('[CRM] CRM_JWT_SECRET is not set; /api/v1 is disabled');
+}
 
 app.use(fileUpload({
     debug: true,

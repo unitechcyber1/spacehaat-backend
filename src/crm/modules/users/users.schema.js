@@ -1,0 +1,46 @@
+import { z } from 'zod';
+import { ALL_PERMISSIONS } from '../auth/permissions.js';
+import { LEAD_SPACE_TYPES } from '../leads/leads.model.js';
+
+const permissionsArray = z
+    .array(z.string())
+    .default([])
+    .refine((arr) => arr.every((p) => ALL_PERMISSIONS.includes(p)), {
+        message: 'Contains an unknown permission',
+    });
+
+const spaceTypesArray = z.array(z.enum(LEAD_SPACE_TYPES)).default([]);
+
+const genderEnum = z.enum(['male', 'female', 'other', 'unspecified']);
+const roleEnum = z.enum(['admin', 'member']);
+
+export const UserCreateSchema = z.object({
+    name: z.string().min(1, 'Name is required').max(120),
+    email: z.string().email('Enter a valid email'),
+    phone: z.string().max(20).optional().default(''),
+    gender: genderEnum.optional().default('unspecified'),
+    password: z.string().min(8, 'Password must be at least 8 characters').max(128),
+    role: roleEnum.optional().default('member'),
+    permissions: permissionsArray,
+    cities: z.array(z.string()).default([]),
+    spaceTypes: spaceTypesArray,
+});
+
+export const UserUpdateSchema = z
+    .object({
+        name: z.string().min(1).max(120).optional(),
+        phone: z.string().max(20).optional(),
+        gender: genderEnum.optional(),
+        password: z.string().min(8, 'Password must be at least 8 characters').max(128).optional(),
+        role: roleEnum.optional(),
+        permissions: z
+            .array(z.string())
+            .refine((arr) => arr.every((p) => ALL_PERMISSIONS.includes(p)), {
+                message: 'Contains an unknown permission',
+            })
+            .optional(),
+        cities: z.array(z.string()).optional(),
+        spaceTypes: z.array(z.enum(LEAD_SPACE_TYPES)).optional(),
+        status: z.enum(['active', 'disabled']).optional(),
+    })
+    .refine((data) => Object.keys(data).length > 0, { message: 'No fields to update' });

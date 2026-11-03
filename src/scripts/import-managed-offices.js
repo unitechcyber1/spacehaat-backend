@@ -43,6 +43,18 @@ const OFFICE_SPACE_CATEGORY = new mongoose.Types.ObjectId('62833d8193f2bd4e9f1a3
 const OTHER_BRAND_SLUG = 'other-coworking';
 const SEAT_TYPES = { WARM_SHELL: 'warm_shell', READ_TO_MOVEIN: 'ready_to_move_in', READY_TO_MOVEIN: 'ready_to_move_in', BARE_SHELL: 'bare_shell' };
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+/** Same centre listed more than once in the export; merged into another record, so never imported. */
+const DUPLICATE_SLUGS = new Set([
+    'synqwork-sector38gurgaon-2',
+    'synqwork-sector38gurgaon-3',
+    'synqwork-sector38gurgaon-4',
+    'synqwork-sector38gurgaon-5',
+    'synqwork-sector44gurgaon-2',
+    'simpliwork-dlfcybercity',
+    'the-work-lounge-sohnaroad',
+]);
+const BLOCKED_NAMES = /cofynd|my\s?hq|anarock/gi;
+const cleanText = (s) => (typeof s === 'string' ? s.replace(BLOCKED_NAMES, 'SpaceWallah') : s);
 
 const norm = (s) => String(s || '')
     .toLowerCase()
@@ -81,12 +93,12 @@ async function uploadImage(url, alt) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
     const data = Buffer.from(await res.arrayBuffer());
-    const realName = decodeURIComponent(url.split('/').pop().split('?')[0]);
+    const realName = cleanText(decodeURIComponent(url.split('/').pop().split('?')[0]));
     const name = crypto.randomBytes(20).toString('hex');
     const fileObj = { file: { name: realName, size: data.length, data } };
     const details = await FileUtility.saveFile(fileObj, 'image', name, 'images', true, 1000, 550);
     await FileUtility.saveFile(fileObj, 'image', name, 'small/images/latest_images_2024', true, 497, 280);
-    const [doc] = await Image.insertMany([{ ...details, title: alt || undefined }]);
+    const [doc] = await Image.insertMany([{ ...details, title: cleanText(alt) || undefined }]);
     return doc._id;
 }
 
@@ -112,9 +124,23 @@ async function main() {
     const otherBrand = brands.find((b) => b.slug === OTHER_BRAND_SLUG);
 
     const summary = { created: 0, skipped: 0, brandsCreated: [], unmatchedLocalities: [], images: 0, imageErrors: 0 };
+    const seenSourceIds = new Set();
 
     for (const w of records) {
-        if (await ManagedOffice.exists({ 'source.provider': SOURCE, 'source.id': w._id })) {
+        const sourceId = String(w._id);
+        if (seenSourceIds.has(sourceId)) {
+            summary.skipped++;
+            console.log(`SKIP  ${w.name} (${w.slug}) duplicate in export`);
+            continue;
+        }
+        seenSourceIds.add(sourceId);
+
+        if (DUPLICATE_SLUGS.has(w.slug)) {
+            summary.skipped++;
+            console.log(`SKIP  ${w.name} (${w.slug}) duplicate of another centre`);
+            continue;
+        }
+        if (await ManagedOffice.exists({ 'source.provider': SOURCE, 'source.id': sourceId })) {
             summary.skipped++;
             console.log(`SKIP  ${w.name} (${w.slug}) already imported`);
             continue;
@@ -182,7 +208,7 @@ async function main() {
 
         const doc = {
             name: w.name,
-            description: w.about || '',
+            description: cleanText(w.about) || '',
             slug,
             images,
             amenties: [],
@@ -234,7 +260,18 @@ async function main() {
             }
         };
 
-        if (apply) await ManagedOffice.create(doc);
+        if (apply) {
+            try {
+                await ManagedOffice.create(doc);
+            } catch (e) {
+                if (e?.code === 11000 || /duplicate key/i.test(e?.message || '')) {
+                    summary.skipped++;
+                    console.log(`SKIP  ${w.name} (${w.slug}) duplicate key while creating`);
+                    continue;
+                }
+                throw e;
+            }
+        }
         summary.created++;
         console.log(`${apply ? 'SAVE ' : 'PLAN '} ${w.name} | ${doc.location.micro_location_string}${micro ? '' : ' (no micro location match)'} | brand: ${brand?.name || '-'} | plans: ${plans.map((p) => `${p.seat_type} ₹${p.price}`).join(', ')} | images: ${apply ? images.length : sourceImages.length}`);
     }

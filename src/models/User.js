@@ -173,6 +173,14 @@ const UserSchema = new Schema({
         type: Boolean,
         default: true
     },
+    /** Sales app access (/api/v1): capabilities plus city and space-type scope. */
+    permissions: [{ type: String }],
+    cities: [{ type: String }],
+    spaceTypes: [{ type: String }],
+    /** Password set in the sales apps; checked alongside `password` at sign-in. */
+    passwordHash: { type: String, select: false },
+    lastLoginAt: Date,
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
     is_profile_updated: {
         type: Boolean,
         default: false

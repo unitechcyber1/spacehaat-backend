@@ -20,6 +20,7 @@ function buildAllowedOriginsSet() {
         'https://www.spacewallah.com',
         'https://admin.spacewallah.com',
         'https://api.spacewallah.com',
+        'https://haat-web-app.vercel.app',
         // Admin panel on Vercel — exact origin only (a *.vercel.app wildcard would let any Vercel app in).
         'https://spacehaat-admin.vercel.app',
         'http://localhost:3000',

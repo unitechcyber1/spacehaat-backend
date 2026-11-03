@@ -84,7 +84,8 @@
     "socket.io": "^4.7.2",
     "stream-json": "^2.1.0",
     "twilio": "^5.4.2",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@babel/cli": "^7.23.0",
