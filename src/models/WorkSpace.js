@@ -345,6 +345,7 @@ const WorkSpaceSchema = new Schema({
         }]
     }],
     no_of_seats: Number,
+    starting_price: Number,
     plans: [{
         category: {
             type: Schema.Types.ObjectId,

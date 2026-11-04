@@ -1,3 +1,5 @@
+import fs from 'fs';
+
 import { renderInvoicePdfHtml } from './invoiceHtml.js';
 
 let browserPromise = null;
@@ -12,13 +14,34 @@ async function getBrowser() {
         }
     }
 
-    const puppeteer = await import('puppeteer');
-    browserPromise = puppeteer.default.launch({
-        headless: 'shell',
-        timeout: 60000,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--font-render-hinting=none'],
-    });
+    browserPromise = launchBrowser();
     return browserPromise;
+}
+
+const LAUNCH_ARGS = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--font-render-hinting=none'];
+
+// Used when the Chrome that puppeteer downloads is missing (e.g. a reinstall pulled a newer puppeteer
+// without its browser). CHROME_PATH lets the server point at any installed Chrome/Chromium.
+const SYSTEM_CHROME_PATHS = [
+    process.env.CHROME_PATH,
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/snap/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+].filter(Boolean);
+
+async function launchBrowser() {
+    const { default: puppeteer } = await import('puppeteer');
+    try {
+        return await puppeteer.launch({ headless: 'shell', timeout: 60000, args: LAUNCH_ARGS });
+    } catch (err) {
+        const executablePath = SYSTEM_CHROME_PATHS.find((p) => fs.existsSync(p));
+        if (!executablePath) throw err;
+        console.warn(`[invoice] bundled Chrome failed (${err?.message || err}); using ${executablePath}`);
+        return puppeteer.launch({ headless: true, executablePath, timeout: 60000, args: LAUNCH_ARGS });
+    }
 }
 
 function resetBrowser() {

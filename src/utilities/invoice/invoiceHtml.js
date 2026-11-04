@@ -15,7 +15,7 @@ import {
     invoiceTaxableSubtotal,
     lineBaseAmount,
 } from './invoiceFormat.js';
-import { getSpacehaatLogoBase64 } from './invoiceAssets.js';
+import { getInvoiceLogoBase64 } from './invoiceAssets.js';
 
 const BRAND = '#4CAF50';
 const BRAND_SOFT = '#E8F5E9';
@@ -324,7 +324,7 @@ export function renderInvoiceHtml(invoice, options = {}) {
         ? formatDetailLinesHtml(formatShipToDetailLines(shipTo))
         : buyerDetailHtml;
 
-    const logoSrc = getSpacehaatLogoBase64();
+    const logoSrc = getInvoiceLogoBase64();
     const logoHtml = logoSrc
         ? `<img class="inv-logo" src="${logoSrc}" alt="SpaceHaat" />`
         : '<h1 class="inv-brand-fallback">spacehaat</h1>';

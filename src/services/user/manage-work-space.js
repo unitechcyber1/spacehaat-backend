@@ -58,6 +58,7 @@ const filteredFields = {
     geometry: 1,
     rooms: 1,
     no_of_seats: 1,
+    starting_price: 1,
     plans: 1,
     likes: 1,
     is_active: 1,

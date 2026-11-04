@@ -1173,11 +1173,12 @@ class ManageInvoiceService {
 
         const fresh = await this._enrichInvoiceForRender(invoice, actorUser);
         fresh.html_snapshot = renderInvoiceHtml(fresh);
-        const buffer = await generateInvoicePdfBuffer(fresh);
+        const { buffer, fallback } = await generateInvoicePdfBuffer(fresh);
         const filename = invoicePdfFilename(fresh);
 
         let pdf_url = invoice.pdf_url;
-        if (store) {
+        // Don't cache the fallback layout: the next download should retry the preview-matching render.
+        if (store && !fallback) {
             try {
                 pdf_url = await this._uploadPdfBuffer(id, buffer);
                 invoice.pdf_url = pdf_url;

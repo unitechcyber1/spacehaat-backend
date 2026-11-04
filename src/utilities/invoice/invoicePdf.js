@@ -15,7 +15,7 @@ import {
     lineBaseAmount,
     normalizeShipToParty,
 } from './invoiceFormat.js';
-import { SPACEHAAT_LOGO_PATH, spacehaatLogoExists } from './invoiceAssets.js';
+import { INVOICE_LOGO_PATH, invoiceLogoExists } from './invoiceAssets.js';
 
 const BRAND = '#4CAF50';
 const BRAND_INK = '#2E7D32';
@@ -230,14 +230,15 @@ function drawMetaLeft(doc, x, y, width, rows, rowGap = 10) {
 
 /**
  * @param {object} invoice — lean or mongoose invoice doc
- * @returns {Promise<Buffer>}
+ * @returns {Promise<{ buffer: Buffer, fallback: boolean }>} fallback is true when Chromium failed and
+ *   the PDFKit layout (which differs from the preview) was used instead.
  */
 export async function generateInvoicePdfBuffer(invoice) {
     try {
-        return await generateInvoicePdfFromHtml(invoice);
+        return { buffer: await generateInvoicePdfFromHtml(invoice), fallback: false };
     } catch (err) {
-        console.warn('[invoice] HTML PDF generation failed, falling back to PDFKit:', err?.message || err);
-        return generateInvoicePdfKitBuffer(invoice);
+        console.error('[invoice] HTML PDF generation failed, falling back to PDFKit:', err?.message || err);
+        return { buffer: await generateInvoicePdfKitBuffer(invoice), fallback: true };
     }
 }
 
@@ -272,8 +273,8 @@ function generateInvoicePdfKitBuffer(invoice) {
             // ── Invoice meta (left) + logo (right) ──
             const logoW = 130;
             const logoH = 36;
-            if (spacehaatLogoExists()) {
-                doc.image(SPACEHAAT_LOGO_PATH, leftX + pageWidth - logoW, y, { width: logoW, height: logoH, fit: [logoW, logoH] });
+            if (invoiceLogoExists()) {
+                doc.image(INVOICE_LOGO_PATH, leftX + pageWidth - logoW, y, { width: logoW, height: logoH, fit: [logoW, logoH] });
             } else {
                 doc.font('Helvetica-Bold').fontSize(18).fillColor(BRAND)
                     .text('SpaceHaat', leftX + pageWidth - logoW, y, { width: logoW, align: 'right' });
