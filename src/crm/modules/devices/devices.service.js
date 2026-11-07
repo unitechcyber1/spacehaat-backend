@@ -141,6 +141,8 @@ export async function notifyMembersOfNewLead(input) {
  * Only admins and assignees can open the lead, so the others get the alert without a link to it.
  */
 export async function notifyWebsiteEnquiry(enquiry) {
+    // Coliving enquiries are not pushed.
+    if (enquiry.spaceType === 'CL' || /coliving|co-living/i.test(enquiry.space_type || '')) return;
     const assigned = (enquiry.assignedUsers || []).map(String).filter((id) => Types.ObjectId.isValid(id));
     const recipients = await User.find({
         ...activeStaffFilter,

@@ -53,7 +53,15 @@ const DUPLICATE_SLUGS = new Set([
     'simpliwork-dlfcybercity',
     'the-work-lounge-sohnaroad',
 ]);
-const BLOCKED_NAMES = /cofynd|my\s?hq|anarock/gi;
+/** Export locality -> existing micro location name, where the two are spelled differently. */
+const LOCALITY_ALIASES = {
+    'Mohan Cooperative Industrial Estate': 'Mohan Cooperative',
+    'Okhla Phase II': 'Okhla',
+    'Kirti Nagar Industrial Area': 'Kirti Nagar',
+    'Saiyad ul Ajaib': 'Saidul Ajaib',
+    'Janakpuri District Center': 'Janakpuri',
+};
+const BLOCKED_NAMES =/cofynd|my\s?hq|anarock/gi;
 const cleanText = (s) => (typeof s === 'string' ? s.replace(BLOCKED_NAMES, 'SpaceWallah') : s);
 
 const norm = (s) => String(s || '')
@@ -151,7 +159,9 @@ async function main() {
         const mls = await MicroLocation.find({ city: c._id }, { name: 1 }).lean();
         const mlByKey = new Map(mls.map((m) => [norm(m.name), m]));
         const parts = String(w.location || '').split(',').map((s) => s.trim()).filter(Boolean);
-        const micro = mlByKey.get(norm(w.location)) || mlByKey.get(norm(parts[0])) || null;
+        const alias = LOCALITY_ALIASES[String(w.location || '').trim()];
+        const micro = mlByKey.get(norm(w.location)) || mlByKey.get(norm(parts[0]))
+            || (alias && mlByKey.get(norm(alias))) || null;
         if (!micro) summary.unmatchedLocalities.push(w.location);
         const [lng, lat] = w.loc?.coordinates || [];
         const metro = (w.directions?.connectivityDetails || []).find((d) => d.connectivityType === 'METRO');

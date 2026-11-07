@@ -16,6 +16,7 @@ import {
     createLeadFromMatch,
     deleteLead,
     getLead,
+    getLeadThread,
     listClients,
     listLeads,
     listRecentClients,
@@ -44,6 +45,7 @@ leadsRouter.get('/leads', requirePermission(PERMISSIONS.LEADS_READ), async (req,
     const dateFrom = typeof req.query.dateFrom === 'string' ? req.query.dateFrom : undefined;
     const dateTo = typeof req.query.dateTo === 'string' ? req.query.dateTo : undefined;
     const reminder = typeof req.query.reminder === 'string' ? req.query.reminder : undefined;
+    const group = req.query.group === 'phone' ? 'phone' : undefined;
 
     const result = await listLeads(req.user, {
         page: Number.isFinite(page) ? page : 1,
@@ -57,6 +59,7 @@ leadsRouter.get('/leads', requirePermission(PERMISSIONS.LEADS_READ), async (req,
         dateFrom,
         dateTo,
         reminder,
+        group,
     });
     res.json(result);
 });
@@ -96,6 +99,10 @@ leadsRouter.get('/leads/assignees', requirePermission(PERMISSIONS.LEADS_READ), a
     const spaceType = typeof req.query.spaceType === 'string' ? req.query.spaceType : '';
     const result = await getLeadAssignees(city, req.user, spaceType || undefined);
     res.json(result);
+});
+
+leadsRouter.get('/leads/:id/thread', requirePermission(PERMISSIONS.LEADS_READ), async (req, res) => {
+    res.json(await getLeadThread(String(req.params.id), req.user));
 });
 
 leadsRouter.get('/leads/:id', requirePermission(PERMISSIONS.LEADS_READ), async (req, res) => {

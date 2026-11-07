@@ -296,6 +296,50 @@ async function getLeadDoc(id, actor) {
     return doc;
 }
 
+const LEAD_LIST_SORT = { leadDate: -1, updated_on: -1 };
+
+/**
+ * Thread key for a lead: the last 10 digits of its phone number, so "+91 98…" and "98…" match.
+ * Leads without a usable number get their own id, so they are never merged.
+ */
+const phoneKeyExpr = {
+    $let: {
+        vars: {
+            digits: {
+                $reduce: {
+                    input: {
+                        $regexFindAll: { input: { $toString: { $ifNull: ['$other_info.phone_number', ''] } }, regex: /\d/ },
+                    },
+                    initialValue: '',
+                    in: { $concat: ['$$value', '$$this.match'] },
+                },
+            },
+        },
+        in: {
+            $cond: [
+                { $gte: [{ $strLenCP: '$$digits' }, 7] },
+                { $substrCP: ['$$digits', { $max: [0, { $subtract: [{ $strLenCP: '$$digits' }, 10] }] }, 10] },
+                { $toString: '$_id' },
+            ],
+        },
+    },
+};
+
+/** One row per phone number (its latest lead), with how many leads share that number. */
+async function listLeadThreads(q, skip, limit) {
+    const [result] = await Lead.aggregate([
+        { $match: q },
+        { $sort: LEAD_LIST_SORT },
+        { $group: { _id: phoneKeyExpr, latest: { $first: '$$ROOT' }, count: { $sum: 1 } } },
+        { $sort: { 'latest.leadDate': -1, 'latest.updated_on': -1 } },
+        { $facet: { rows: [{ $skip: skip }, { $limit: limit }], total: [{ $count: 'n' }] } },
+    ]).exec();
+    return {
+        rows: (result?.rows || []).map((r) => ({ ...toLeadSummary(r.latest), threadCount: r.count })),
+        total: result?.total[0]?.n || 0,
+    };
+}
+
 export async function listLeads(actor, options = {}) {
     const page = Math.max(1, options.page ?? 1);
     const limit = Math.min(100, Math.max(1, options.limit ?? 20));
@@ -332,8 +376,20 @@ export async function listLeads(actor, options = {}) {
     if (Object.keys(searchFilter).length) countBaseFilters.push(searchFilter);
     const countBaseQ = asLeadFilter(combineFilters(...countBaseFilters));
 
+    if (options.group === 'phone') {
+        const [threads, stageCounts] = await Promise.all([listLeadThreads(q, skip, limit), aggregateLeadStageCounts(countBaseQ)]);
+        return {
+            items: await attachAssigneeNames(threads.rows),
+            total: threads.total,
+            stageCounts,
+            page,
+            limit,
+            pageCount: Math.max(1, Math.ceil(threads.total / limit)),
+        };
+    }
+
     const [rawRows, total, stageCounts] = await Promise.all([
-        Lead.find(q).sort({ leadDate: -1, updated_on: -1 }).skip(skip).limit(limit).lean().exec(),
+        Lead.find(q).sort(LEAD_LIST_SORT).skip(skip).limit(limit).lean().exec(),
         Lead.countDocuments(q),
         aggregateLeadStageCounts(countBaseQ),
     ]);
@@ -404,7 +460,8 @@ export async function createLead(input, actor) {
     await logLeadActivity(actor.name, 'created a lead', title);
 
     // Notify city members; never notify the person who created the lead (e.g. admin).
-    void notifyMembersOfNewLead({
+    // Coliving leads are not pushed.
+    if (spaceType !== 'CL') void notifyMembersOfNewLead({
         leadId: String(doc._id),
         leadTitle: title,
         city,
@@ -460,6 +517,20 @@ export async function getLead(id, actor) {
     const doc = await getLeadDoc(id, actor);
     const [item] = await attachAssigneeNames([toLeadDetail(doc)]);
     return item;
+}
+
+/** Every lead the actor can see that shares this lead's phone number, newest first. */
+export async function getLeadThread(id, actor) {
+    const doc = await getLeadDoc(id, actor);
+    const q = combineFilters(leadQueryForUser(actor), cityFilterForUser(actor), spaceTypeFilterForUser(actor));
+    const [self] = await Lead.aggregate([{ $match: { _id: doc._id } }, { $project: { key: phoneKeyExpr } }]).exec();
+    const thread = await Lead.aggregate([
+        { $match: q },
+        { $match: { $expr: { $eq: [phoneKeyExpr, self.key] } } },
+        { $sort: LEAD_LIST_SORT },
+        { $limit: 100 },
+    ]).exec();
+    return { items: await attachAssigneeNames(thread.map((row) => toLeadSummary(row))) };
 }
 
 export async function deleteLead(id, actor) {
