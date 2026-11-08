@@ -126,7 +126,7 @@ if (crmEnabled) {
 }
 
 app.use(fileUpload({
-    debug: true,
+    debug: false,
     limits: { fileSize: storage.maxFileSize }
 }));
 // CSP: allow Socket.IO CDN and WebSocket; production uses API_URL / FRONTEND_URL from env
