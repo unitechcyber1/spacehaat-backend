@@ -1,9 +1,8 @@
 import { Router } from '../../utils/router.js';
-import { validateBody } from '../../middleware/validate.js';
+import { imageUpload } from '../../middleware/upload.js';
 import { ApiError } from '../../utils/apiError.js';
 import { requirePermission, requireRole } from '../auth/auth.middleware.js';
 import { PERMISSIONS, cityScope } from '../auth/permissions.js';
-import { ListingCreateSchema, ListingUpdateSchema } from './listings.schema.js';
 import {
     createListing,
     deleteListing,
@@ -14,6 +13,13 @@ import {
     verifyListing,
 } from './listings.service.js';
 import { inCityScope, listingsByIds } from './workspace-listings.js';
+import {
+    cityNameOf,
+    editorOptions,
+    getEditable,
+    locationOptions,
+    uploadWorkspaceImages,
+} from './workspace-editor.js';
 
 export const listingsRouter = Router();
 
@@ -110,6 +116,26 @@ listingsRouter.get('/listings/meta', requirePermission(PERMISSIONS.LISTINGS_READ
     res.json(await listingsMeta());
 });
 
+// Space form: dropdown data, location cascade, raw editable space, photo upload.
+listingsRouter.get('/listings/editor/options', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (_req, res) => {
+    res.json(await editorOptions());
+});
+
+listingsRouter.get('/listings/editor/locations', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (req, res) => {
+    const q = (k) => (typeof req.query[k] === 'string' ? req.query[k] : '');
+    res.json(await locationOptions({ country: q('country'), state: q('state'), city: q('city') }));
+});
+
+listingsRouter.post(
+    '/listings/editor/images',
+    requirePermission(PERMISSIONS.LISTINGS_WRITE),
+    imageUpload.array('images', 20),
+    async (req, res) => {
+        if (!req.files?.length) throw new ApiError(400, 'No images provided', 'NO_FILES');
+        res.status(201).json({ items: await uploadWorkspaceImages(req.files) });
+    },
+);
+
 listingsRouter.get('/listings/:id', requirePermission(PERMISSIONS.LISTINGS_READ), async (req, res) => {
     const item = await getListing(String(req.params.id));
     if (!item) throw new ApiError(404, 'Listing not found', 'NOT_FOUND');
@@ -117,31 +143,29 @@ listingsRouter.get('/listings/:id', requirePermission(PERMISSIONS.LISTINGS_READ)
     res.json({ item });
 });
 
-listingsRouter.post(
-    '/listings',
-    requirePermission(PERMISSIONS.LISTINGS_WRITE),
-    validateBody(ListingCreateSchema),
-    async (req, res) => {
-        assertCityAllowed(req, req.body.city);
-        const item = await createListing(req.body);
-        res.status(201).json({ item });
-    },
-);
+listingsRouter.get('/listings/:id/edit', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (req, res) => {
+    const item = await getEditable(String(req.params.id));
+    if (!item) throw new ApiError(404, 'Space not found', 'NOT_FOUND');
+    assertCityAllowed(req, item.labels.city);
+    res.json({ item });
+});
 
-listingsRouter.patch(
-    '/listings/:id',
-    requirePermission(PERMISSIONS.LISTINGS_WRITE),
-    validateBody(ListingUpdateSchema),
-    async (req, res) => {
-        const existing = await getListing(String(req.params.id));
-        if (!existing) throw new ApiError(404, 'Listing not found', 'NOT_FOUND');
-        assertCityAllowed(req, existing.city);
-        if (req.body.city) assertCityAllowed(req, req.body.city);
-        const item = await updateListing(String(req.params.id), req.body);
-        if (!item) throw new ApiError(404, 'Listing not found', 'NOT_FOUND');
-        res.json({ item });
-    },
-);
+listingsRouter.post('/listings', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (req, res) => {
+    assertCityAllowed(req, await cityNameOf(req.body?.location?.city));
+    const item = await createListing(req.body || {}, req.user);
+    res.status(201).json({ item });
+});
+
+listingsRouter.patch('/listings/:id', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (req, res) => {
+    const id = String(req.params.id);
+    const existing = await getEditable(id);
+    if (!existing) throw new ApiError(404, 'Space not found', 'NOT_FOUND');
+    assertCityAllowed(req, existing.labels.city);
+    assertCityAllowed(req, await cityNameOf(req.body?.location?.city));
+    const item = await updateListing(id, req.body || {}, req.user);
+    if (!item) throw new ApiError(404, 'Space not found', 'NOT_FOUND');
+    res.json({ item });
+});
 
 listingsRouter.post('/listings/:id/verify', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (req, res) => {
     const existing = await getListing(String(req.params.id));

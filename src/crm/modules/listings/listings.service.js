@@ -9,6 +9,7 @@ import {
     toCrmListing,
     workspaceQuery,
 } from './workspace-listings.js';
+import { createWorkspace, saveImageTitles, updateWorkspace } from './workspace-editor.js';
 
 export { freshOfDays };
 
@@ -63,14 +64,20 @@ export async function getListing(id) {
     return listingById(id);
 }
 
-const MANAGED = 'Coworking spaces are managed in the admin panel. Open the space there to change it.';
+const MANAGED = 'Coworking spaces are deleted in the admin panel.';
 
-export async function createListing() {
-    throw new ApiError(400, MANAGED, 'MANAGED_IN_ADMIN');
+/** New coworking space from the CRM apps (saved as a website WorkSpace, Pending unless an admin approves). */
+export async function createListing(body, user) {
+    const id = await createWorkspace(body, user);
+    await saveImageTitles(body.photos);
+    return listingById(id);
 }
 
-export async function updateListing() {
-    throw new ApiError(400, MANAGED, 'MANAGED_IN_ADMIN');
+export async function updateListing(id, body, user) {
+    const saved = await updateWorkspace(id, body, user);
+    if (!saved) return null;
+    await saveImageTitles(body.photos);
+    return listingById(id);
 }
 
 export async function deleteListing() {
