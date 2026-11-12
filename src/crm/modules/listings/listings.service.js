@@ -1,155 +1,115 @@
-import { Listing } from './listings.model.js';
+import { ApiError } from '../../utils/apiError.js';
+import models from '../../../models/index.js';
+import {
+    POPULATE,
+    WorkSpace,
+    freshOfDays,
+    listingById,
+    statusCounts,
+    toCrmListing,
+    workspaceQuery,
+} from './workspace-listings.js';
 
-function daysSince(d) {
-    const ms = Date.now() - d.getTime();
-    return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
-}
-
-export function freshOfDays(days) {
-    if (days <= 5) return { state: 'fresh', label: `Verified ${days}d ago`, days };
-    if (days <= 14) return { state: 'stale', label: `${days}d ago`, days };
-    return { state: 'expired', label: `${days}d — re-verify`, days };
-}
-
-const MS_DAY = 1000 * 60 * 60 * 24;
-
-function verifiedAtRangeForFreshness(freshness) {
-    const now = Date.now();
-    if (freshness === 'fresh') return { $gte: new Date(now - 5 * MS_DAY) };
-    if (freshness === 'stale') {
-        return { $gte: new Date(now - 14 * MS_DAY), $lt: new Date(now - 5 * MS_DAY) };
-    }
-    return { $lt: new Date(now - 14 * MS_DAY) };
-}
-
-function mapListingRow(l) {
-    const days = l.verifiedAt ? daysSince(new Date(l.verifiedAt)) : 0;
-    return { ...l, fresh: freshOfDays(days) };
-}
+export { freshOfDays };
 
 const EMPTY_PAGE = { items: [], total: 0, page: 1, limit: 20, pageCount: 1 };
+const SORTS = {
+    updated: { updated_on: -1, _id: -1 },
+    newest: { added_on: -1, _id: -1 },
+    price: { starting_price: 1, _id: 1 },
+    seats: { no_of_seats: -1, _id: -1 },
+    name: { name: 1, _id: 1 },
+};
 
+/**
+ * Inventory list = the website's coworking spaces, with their approval status.
+ * Without page/limit it returns every match (Smart Match uses that, approved spaces only).
+ */
 export async function listListings(filters, options = {}) {
-    const q = {};
-
-    const allowed = filters.allowedCities;
-    if (Array.isArray(allowed)) {
-        if (allowed.length === 0) return { ...EMPTY_PAGE, limit: options.limit ?? 20 };
-        if (filters.city && filters.city !== 'All cities') {
-            if (!allowed.includes(filters.city)) return { ...EMPTY_PAGE, limit: options.limit ?? 20 };
-            q.city = filters.city;
-        } else {
-            q.city = { $in: allowed };
-        }
-    } else if (filters.city && filters.city !== 'All cities') {
-        q.city = filters.city;
-    }
-
-    if (filters.type && filters.type !== 'All') q.type = filters.type;
-    if (filters.freshness) q.verifiedAt = verifiedAtRangeForFreshness(filters.freshness);
-    if (typeof filters.maxPrice === 'number') {
-        q.price = { ...q.price, $lte: filters.maxPrice };
-    }
-    if (typeof filters.minSeats === 'number' && filters.minSeats > 0) {
-        q.seats = { ...q.seats, $gte: filters.minSeats };
-    }
-    if (filters.amenities?.length) q.amenities = { $all: filters.amenities };
-
-    if (filters.buildingType && filters.buildingType !== 'All') {
-        q['profile.identity.buildingType'] = filters.buildingType;
-    }
-    if (filters.virtualOffice) q['profile.operations.virtualOfficeAvailable'] = true;
-    if (filters.managedOffice) q['profile.operations.managedOfficeAvailable'] = true;
-    if (filters.hotDesk) q['profile.capacity.hotDeskAvailable'] = true;
-    if (filters.vastu) q['profile.identity.vastu'] = true;
-
-    const search = options.search?.trim();
-    if (search) {
-        const tokens = search.split(/\s+/).filter(Boolean);
-        const tokenClauses = tokens.map((token) => {
-            const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const re = new RegExp(escaped, 'i');
-            return {
-                $or: [
-                    { operator: re },
-                    { city: re },
-                    { micro: re },
-                    { type: re },
-                    { tier: re },
-                    { avail: re },
-                    { 'profile.identity.centreName': re },
-                    { 'profile.identity.address': re },
-                    { 'profile.identity.nearestMetro': re },
-                    { 'profile.identity.buildingType': re },
-                    { amenities: re },
-                ],
-            };
-        });
-        q.$and = [...(q.$and || []), ...tokenClauses];
-    }
-
+    const q = await workspaceQuery(filters, options.search);
     const paginate = options.page !== undefined || options.limit !== undefined;
     const page = Math.max(1, options.page ?? 1);
     const limit = paginate ? Math.min(100, Math.max(1, options.limit ?? 20)) : undefined;
+    const withCounts = options.withCounts && paginate;
 
-    const sortQuery = Listing.find(q).sort({ verifiedAt: -1 });
+    if (!q) {
+        return { ...EMPTY_PAGE, limit: limit ?? 20, ...(withCounts ? { statusCounts: await statusCounts(filters, options.search) } : {}) };
+    }
 
-    let items;
+    const sort = SORTS[options.sort] || SORTS.updated;
+    let rows;
     let total;
-
     if (paginate) {
-        const skip = (page - 1) * limit;
-        const [rawRows, count] = await Promise.all([
-            sortQuery.clone().skip(skip).limit(limit).lean().exec(),
-            Listing.countDocuments(q),
+        [rows, total] = await Promise.all([
+            WorkSpace.find(q).sort(sort).skip((page - 1) * limit).limit(limit).populate(POPULATE).lean(),
+            WorkSpace.countDocuments(q),
         ]);
-        items = rawRows.map(mapListingRow);
-        total = count;
     } else {
-        const rawRows = await sortQuery.lean().exec();
-        items = rawRows.map(mapListingRow);
-        total = items.length;
+        rows = await WorkSpace.find(q).sort(sort).populate(POPULATE).lean();
+        total = rows.length;
     }
 
     return {
-        items,
+        items: rows.map(toCrmListing),
         total,
         page: paginate ? page : 1,
         limit: paginate ? limit : total,
         pageCount: paginate ? Math.max(1, Math.ceil(total / limit)) : 1,
+        ...(withCounts ? { statusCounts: await statusCounts(filters, options.search) } : {}),
     };
 }
 
 export async function getListing(id) {
-    const item = await Listing.findById(id).lean().exec();
-    if (!item) return null;
-    return mapListingRow(item);
+    return listingById(id);
 }
 
-export async function createListing(input) {
-    const verifiedAt = new Date();
-    const fresh = freshOfDays(0);
-    const doc = await Listing.create({ ...input, verifiedAt, fresh });
-    return doc.toObject();
+const MANAGED = 'Coworking spaces are managed in the admin panel. Open the space there to change it.';
+
+export async function createListing() {
+    throw new ApiError(400, MANAGED, 'MANAGED_IN_ADMIN');
 }
 
-export async function updateListing(id, input) {
-    const doc = await Listing.findByIdAndUpdate(id, input, { new: true }).lean().exec();
-    if (!doc) return null;
-    return mapListingRow(doc);
+export async function updateListing() {
+    throw new ApiError(400, MANAGED, 'MANAGED_IN_ADMIN');
 }
 
-export async function verifyListing(id) {
-    const verifiedAt = new Date();
-    const doc = await Listing.findByIdAndUpdate(id, { verifiedAt, fresh: freshOfDays(0) }, { new: true })
-        .lean()
-        .exec();
-    if (!doc) return null;
-    return doc;
+export async function deleteListing() {
+    throw new ApiError(400, MANAGED, 'MANAGED_IN_ADMIN');
 }
 
-export async function deleteListing(id) {
-    const doc = await Listing.findByIdAndDelete(id).lean().exec();
-    if (!doc) return null;
-    return mapListingRow(doc);
+/** "Mark verified": staff confirmed availability and prices today. Only touches the CRM fields. */
+export async function verifyListing(id, userId) {
+    const res = await WorkSpace.updateOne(
+        { _id: id },
+        { $set: { crm_verified_at: new Date(), ...(userId ? { crm_verified_by: userId } : {}) } },
+        { timestamps: false },
+    );
+    if (!res.matchedCount) return null;
+    return listingById(id);
+}
+
+let metaCache = null;
+/** Amenity names actually used on spaces (most used first) and the plan types, for the filters. */
+export async function listingsMeta() {
+    if (metaCache && metaCache.at > Date.now() - 10 * 60e3) return metaCache.data;
+    const rows = await WorkSpace.aggregate([
+        { $unwind: '$amenties' },
+        { $group: { _id: '$amenties', n: { $sum: 1 } } },
+        { $sort: { n: -1 } },
+        { $limit: 30 },
+    ]);
+    const names = await models.Amenty.find({ _id: { $in: rows.map((r) => r._id) } }).select('name').lean();
+    const byId = new Map(names.map((a) => [String(a._id), a.name]));
+    const data = {
+        amenities: rows.map((r) => byId.get(String(r._id))).filter(Boolean),
+        spaceTypes: ['Hot desk', 'Dedicated desk', 'Private cabin', 'Managed office', 'Day pass', 'Virtual office', 'Meeting room'],
+        statuses: [
+            { key: 'approved', label: 'Approved' },
+            { key: 'pending', label: 'Pending' },
+            { key: 'inprogress', label: 'In progress' },
+            { key: 'rejected', label: 'Rejected' },
+        ],
+    };
+    metaCache = { at: Date.now(), data };
+    return data;
 }

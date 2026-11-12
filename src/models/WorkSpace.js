@@ -486,7 +486,10 @@ const WorkSpaceSchema = new Schema({
         enum: ['seller', 'admin'],
         default: 'admin'
     },
-    space_type_key: { type: String }
+    space_type_key: { type: String },
+    /** Sales CRM: when staff last confirmed this space's availability and prices ("Mark verified"). */
+    crm_verified_at: Date,
+    crm_verified_by: { type: Schema.Types.ObjectId, ref: 'User' }
 },
     mongoSchemaOptions
 )
@@ -497,4 +500,5 @@ WorkSpaceSchema.virtual('space_type').get(function () {
 WorkSpaceSchema.index({ geometry: "2dsphere" });
 WorkSpaceSchema.index({ "name": 'text', "location.address1": 1 }, { unique: true })
 WorkSpaceSchema.index({ 'location.city': 1 });
+WorkSpaceSchema.index({ user: 1 });
 export default WorkSpaceSchema;

@@ -1,8 +1,7 @@
 import { Types } from 'mongoose';
 import { cityScope } from '../auth/permissions.js';
 import { countOpenLeads, countOverdueLeads, listOverdueLeads } from '../leads/leads.service.js';
-import { Listing } from '../listings/listings.model.js';
-import { freshOfDays } from '../listings/listings.service.js';
+import { WorkSpace, freshOfDays, workspaceQuery } from '../listings/workspace-listings.js';
 import { Proposal } from '../proposals/proposals.model.js';
 
 function daysSince(d) {
@@ -14,13 +13,6 @@ function startOfDay(d = new Date()) {
     const x = new Date(d);
     x.setHours(0, 0, 0, 0);
     return x;
-}
-
-function listingQueryForUser(user) {
-    const scope = cityScope(user);
-    if (scope === null) return {};
-    if (!scope.length) return { city: { $in: [] } };
-    return { city: { $in: scope } };
 }
 
 function proposalQueryForUser(user) {
@@ -37,8 +29,9 @@ async function countProposalsSentBetween(user, from, to) {
 }
 
 export async function getDashboardStats(user) {
-    const listingQ = listingQueryForUser(user);
-    const rows = await Listing.find(listingQ).select('verifiedAt createdAt city').lean().exec();
+    // Inventory = the website's approved coworking spaces in the user's cities.
+    const listingQ = await workspaceQuery({ allowedCities: cityScope(user), liveOnly: true });
+    const rows = listingQ ? await WorkSpace.find(listingQ).select('crm_verified_at updated_on added_on createdAt').lean() : [];
 
     const weekAgo = startOfDay();
     weekAgo.setDate(weekAgo.getDate() - 7);
@@ -49,13 +42,15 @@ export async function getDashboardStats(user) {
     let addedThisWeek = 0;
 
     for (const row of rows) {
-        const days = row.verifiedAt ? daysSince(new Date(row.verifiedAt)) : 999;
+        const checked = row.crm_verified_at || row.updated_on || row.added_on || row.createdAt || row._id.getTimestamp();
+        const days = checked ? daysSince(new Date(checked)) : 999;
         const state = freshOfDays(days).state;
         if (state === 'fresh') fresh += 1;
         else if (state === 'stale') stale += 1;
         else expired += 1;
 
-        if (row.createdAt && new Date(row.createdAt) >= weekAgo) addedThisWeek += 1;
+        const added = row.added_on || row.createdAt || row._id.getTimestamp();
+        if (new Date(added) >= weekAgo) addedThisWeek += 1;
     }
 
     const total = rows.length;

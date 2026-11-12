@@ -47,7 +47,7 @@ function mergeRequirements(base, patch) {
 
 export async function parseEnquiry(enquiry, user) {
     const allowed = cityScope(user);
-    const listings = await listListings({ allowedCities: allowed });
+    const listings = await listListings({ allowedCities: allowed, liveOnly: true });
     const ctx = buildParseContext(listings.items);
     const { requirements, source } = await parseRequirements(enquiry, ctx);
     return { requirements, source, context: { cities: ctx.cities, amenities: ctx.amenities.slice(0, 16) } };
@@ -60,6 +60,7 @@ export async function runSmartMatch(input, user) {
     const { items: listings } = await listListings({
         allowedCities: allowed,
         city: cityFilter,
+        liveOnly: true,
     });
 
     const ctx = buildParseContext(listings);

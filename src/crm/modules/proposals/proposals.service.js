@@ -3,7 +3,7 @@ import { Types } from 'mongoose';
 import { ApiError } from '../../utils/apiError.js';
 import { Activity } from '../activity/activity.model.js';
 import { attachProposalToLead, advanceLeadOnClientVisit } from '../leads/leads.service.js';
-import { Listing } from '../listings/listings.model.js';
+import { existingListingIds, listingsByIds } from '../listings/workspace-listings.js';
 import { downloadBuffer, uploadProposalPdf } from '../uploads/uploads.service.js';
 import { Proposal } from './proposals.model.js';
 import { buildProposalPdf, mapListingToPdf } from './proposals.pdf.js';
@@ -129,24 +129,13 @@ function defaultProposalTitle(client, count) {
 }
 
 async function filterValidListingIds(ids) {
-    if (!ids.length) return [];
-    const objectIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
-    if (!objectIds.length) return [];
-    const found = await Listing.find({ _id: { $in: objectIds } })
-        .select('_id')
-        .lean()
-        .exec();
-    const validSet = new Set(found.map((l) => String(l._id)));
-    return ids.filter((id) => validSet.has(id));
+    return existingListingIds(ids);
 }
 
+/** Proposal spaces in order: website coworking spaces, or old CRM listings for older proposals. */
 async function getOrderedListings(listingIds) {
     if (!listingIds.length) return [];
-    const rows = await Listing.find({ _id: { $in: listingIds } })
-        .lean()
-        .exec();
-    const map = new Map(rows.map((l) => [String(l._id), l]));
-    return listingIds.map((id) => map.get(String(id))).filter((l) => Boolean(l));
+    return listingsByIds(listingIds.map(String));
 }
 
 function renderToPdfListings(render) {
@@ -667,10 +656,7 @@ export async function sendDraft(input, actor) {
         throw new ApiError(400, 'Add at least one space before sending', 'EMPTY_PROPOSAL');
     }
 
-    const listings = await Listing.find({ _id: { $in: draft.listingIds } })
-        .select('micro seats')
-        .lean()
-        .exec();
+    const listings = await getOrderedListings(draft.listingIds);
     const clientLabel = draft.client?.company || draft.client?.name || 'a client';
     const listingCount = draft.listingIds.length;
     const linkedLeadId = input.leadId || (draft.leadId ? String(draft.leadId) : null);

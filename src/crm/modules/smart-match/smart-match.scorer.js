@@ -117,11 +117,12 @@ function scoreSpaceType(listing, req) {
     const reasons = [];
     const prefs = req.spaceTypes || [];
     if (!prefs.length) return { pts: 4, reasons };
-    const hit = prefs.some(
-        (t) => norm(t) === norm(listing.type) || listing.type.toLowerCase().includes(t.toLowerCase()),
-    );
-    if (hit) {
-        reasons.push({ text: `Space type — ${listing.type}`, ok: true });
+    const offered = listing.spaceTypes?.length ? listing.spaceTypes : [listing.type || ''];
+    const match = offered.find((type) => prefs.some(
+        (t) => norm(t) === norm(type) || type.toLowerCase().includes(t.toLowerCase()),
+    ));
+    if (match) {
+        reasons.push({ text: `Space type — ${match}`, ok: true });
         return { pts: 8, reasons };
     }
     reasons.push({ text: `${listing.type} — not preferred type`, ok: false });
@@ -230,6 +231,8 @@ export function listingToMatchResponse(listing) {
         avail: listing.avail,
         amenities: listing.amenities || [],
         fresh: listing.fresh,
-        images: listing.images || [],
+        images: (listing.images || []).slice(0, 5),
+        spaceTypes: listing.spaceTypes || [],
+        status: listing.status,
     };
 }
