@@ -16,8 +16,8 @@ export const SPACE_TAGS = ['Premium', 'Near Metro', 'Special Offer', 'Popular'];
 export const PLAN_DURATIONS = ['month', 'year', 'week', 'day', 'hour'];
 export const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 /** Status keys the apps use ↔ WorkSpace.status. */
-const STATUS_TO_DB = { approved: 'approve', pending: 'pending', inprogress: 'inprogress', rejected: 'reject' };
-const STATUS_FROM_DB = { approve: 'approved', pending: 'pending', inprogress: 'inprogress', reject: 'rejected' };
+export const STATUS_TO_DB = { approved: 'approve', pending: 'pending', inprogress: 'inprogress', rejected: 'reject' };
+export const STATUS_FROM_DB = { approve: 'approved', pending: 'pending', inprogress: 'inprogress', reject: 'rejected' };
 /** Nearby transport: flag + landmark name + distance on `location`. */
 const NEARBY = [
     { key: 'metro', flag: 'is_near_metro', name: 'landmark', distance: 'landmark_distance' },
@@ -28,21 +28,21 @@ const NEARBY = [
 ];
 const SEO_BLOCKS = ['seo', 'new_seo', 'virtualSeo'];
 
-const isId = (v) => typeof v === 'string' && /^[a-f0-9]{24}$/i.test(v);
-const idOf = (v) => {
+export const isId = (v) => typeof v === 'string' && /^[a-f0-9]{24}$/i.test(v);
+export const idOf = (v) => {
     if (!v) return '';
     if (typeof v === 'string') return v;
     if (v instanceof Types.ObjectId) return String(v);
     return v._id ? String(v._id) : '';
 };
-const str = (v, max = 500) => (v === undefined || v === null ? '' : String(v).trim().slice(0, max));
-const num = (v) => {
+export const str = (v, max = 500) => (v === undefined || v === null ? '' : String(v).trim().slice(0, max));
+export const num = (v) => {
     if (v === '' || v === null || v === undefined) return undefined;
     const n = Number(v);
     return Number.isFinite(n) ? n : undefined;
 };
-const bool = (v) => v === true || v === 'true';
-const img = (i) => (i && i.s3_link ? { id: String(i._id), url: i.s3_link, title: i.title || '' } : null);
+export const bool = (v) => v === true || v === 'true';
+export const img = (i) => (i && i.s3_link ? { id: String(i._id), url: i.s3_link, title: i.title || '' } : null);
 
 let optionsCache = null;
 /** Dropdown data for the space form (brands, amenities, plan types, countries, tags). */
@@ -103,12 +103,13 @@ function hoursForForm(h = {}) {
     return out;
 }
 
-function seoForForm(s = {}) {
+export function seoForForm(s = {}) {
     return {
         title: s.title || '',
         description: s.description || '',
         keywords: s.keywords || '',
-        index: s.robots ? s.robots === 'index, follow' : true,
+        // Only an explicit "noindex" turns indexing off; "index,follow", "INDEX, FOLLOW" or empty all mean index.
+        index: !/noindex/i.test(s.robots || ''),
         twitterTitle: s.twitter?.title || '',
         twitterDescription: s.twitter?.description || '',
         twitterImage: img(s.twitter?.image),
@@ -227,7 +228,7 @@ export async function cityNameOf(cityId) {
     return c?.name || '';
 }
 
-function slugify(s) {
+export function slugify(s) {
     return String(s).toLowerCase()
         .replace(/\s+/g, '-')
         .replace(/[^\w-]+/g, '')
@@ -261,9 +262,9 @@ function hoursForDb(h = {}) {
     return out;
 }
 
-const imageId = (i) => (i && isId(String(i.id || '')) ? String(i.id) : undefined);
+export const imageId = (i) => (i && isId(String(i.id || '')) ? String(i.id) : undefined);
 
-function seoForDb(s = {}) {
+export function seoForDb(s = {}) {
     return {
         title: str(s.title, 300),
         description: str(s.description, 2000),
@@ -400,7 +401,7 @@ function requireFields(body) {
     }
 }
 
-function duplicateError(err) {
+export function duplicateError(err) {
     if (err?.code === 11000) {
         return new ApiError(409, 'A space with this name and address already exists.', 'DUPLICATE_SPACE');
     }

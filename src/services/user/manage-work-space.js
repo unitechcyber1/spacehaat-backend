@@ -442,7 +442,13 @@ class ManageWorkSpaceService {
                         ratings: 1,
                         country_dbname: 1,
                         status: 1,
-                        currency_code: 1
+                        currency_code: 1,
+                        // For the website's sitemaps: list only indexable, live spaces, with a real lastmod.
+                        is_active: 1,
+                        updated_on: 1,
+                        'new_seo.robots': 1,
+                        'new_seo.status': 1,
+                        'new_seo.title': 1
                     }
                 }
             );
