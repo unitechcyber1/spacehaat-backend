@@ -80,7 +80,8 @@ export async function allocateUniquePgSlug(PGModel, fields, { excludeId, baseSlu
     let candidate = base;
     let n = 2;
     while (true) {
-        const filter = { slug: candidate };
+        // Never reuse another PG's current or earlier URL (earlier ones still redirect to that PG).
+        const filter = { $or: [{ slug: candidate }, { previous_slugs: candidate }] };
         if (excludeId) filter._id = { $ne: excludeId };
         const exists = await PGModel.exists(filter);
         if (!exists) return candidate;

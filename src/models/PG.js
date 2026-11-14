@@ -136,6 +136,10 @@ const PGSchema = new Schema(
     {
         pg_id: { type: String, index: true },
         slug: { type: String, index: true, trim: true },
+        /** Earlier URLs of this PG; the website redirects them here permanently. */
+        previous_slugs: { type: [String], index: true, default: undefined },
+        /** A hidden duplicate points at the live listing of the same PG (its URL redirects there). */
+        duplicate_of: { type: Schema.Types.ObjectId, ref: 'PG' },
         userId: { type: Schema.Types.ObjectId, ref: 'User' },
         name: { type: String, required: true, trim: true },
         contactNumber: String,

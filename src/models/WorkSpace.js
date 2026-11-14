@@ -406,6 +406,8 @@ const WorkSpaceSchema = new Schema({
         ref: 'Brand'
     },
     slug: String,
+    /** Earlier URLs of this space; the website redirects them here permanently. */
+    previous_slugs: { type: [String], index: true, default: undefined },
     priority: {
         overall: {
             is_active: {

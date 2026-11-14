@@ -19,7 +19,7 @@ const SORT_FIELDS = {
     updated_on: 'updated_on',
 };
 /** Fields the admin form may not overwrite. */
-const READ_ONLY_FIELDS = ['_id', 'id', '__v', 'added_on', 'updated_on', 'source', 'starting_price', 'space_type'];
+const READ_ONLY_FIELDS = ['_id', 'id', '__v', 'added_on', 'updated_on', 'source', 'starting_price', 'space_type', 'previous_slugs'];
 
 function escapeRegex(value) {
     return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -292,7 +292,11 @@ class ManageManagedOfficeService {
             const wanted = slugifyText(data.slug || '');
             if (!wanted) delete data.slug;
             else if (await ManagedOffice.exists({ slug: wanted, _id: { $ne: _id } })) fail(409, `Slug "${wanted}" is already used`);
-            else data.slug = wanted;
+            else {
+                data.slug = wanted;
+                const current = await ManagedOffice.findById(_id).select('slug').lean();
+                await this._rememberOldSlug(_id, current?.slug, wanted);
+            }
         }
         // `priority` is managed by the priority screens; only keep its city refs aligned with the location.
         delete data.priority;
@@ -328,9 +332,17 @@ class ManageManagedOfficeService {
         const wanted = slugifyText(slug || '');
         if (!wanted) fail(400, 'Slug is required');
         if (await ManagedOffice.exists({ slug: wanted, _id: { $ne: _id } })) fail(409, `Slug "${wanted}" is already used`);
-        const doc = await ManagedOffice.findByIdAndUpdate(_id, { $set: { slug: wanted } }, { new: true });
-        if (!doc) fail(404, 'Managed office not found');
-        return doc;
+        const current = await ManagedOffice.findById(_id).select('slug').lean();
+        if (!current) fail(404, 'Managed office not found');
+        await this._rememberOldSlug(_id, current.slug, wanted);
+        return ManagedOffice.findByIdAndUpdate(_id, { $set: { slug: wanted } }, { new: true });
+    }
+
+    /** Keeps a replaced URL in `previous_slugs` so the website redirects it to the office's new URL. */
+    async _rememberOldSlug(_id, oldSlug, newSlug) {
+        if (!oldSlug || oldSlug === newSlug) return;
+        await ManagedOffice.updateOne({ _id }, { $addToSet: { previous_slugs: oldSlug } });
+        await ManagedOffice.updateOne({ _id }, { $pull: { previous_slugs: newSlug } });
     }
 
     /** Brands that have managed offices, for the list filter. */

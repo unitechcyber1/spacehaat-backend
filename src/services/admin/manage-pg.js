@@ -569,34 +569,30 @@ class ManagePgService {
         });
         if (ownerUserId) rest.userId = ownerUserId;
 
-        const slugFieldsChanged =
-            Object.prototype.hasOwnProperty.call(rest, 'name') ||
-            Object.prototype.hasOwnProperty.call(rest, 'locality') ||
-            Object.prototype.hasOwnProperty.call(rest, 'city');
-
-        if (rest.slug && String(rest.slug).trim()) {
-            rest.slug = await allocateUniquePgSlug(
+        // A PG keeps its URL. Only an explicit edit of the URL field changes it, and the old URL is kept in
+        // `previous_slugs` so the website redirects it; renaming a PG or its area no longer moves the page.
+        delete rest.previous_slugs;
+        delete rest.duplicate_of;
+        const wantedSlug = rest.slug && String(rest.slug).trim() ? slugifyText(rest.slug) : '';
+        if (existing.slug && (!wantedSlug || wantedSlug === existing.slug)) {
+            delete rest.slug;
+        } else {
+            const nextSlug = await allocateUniquePgSlug(
                 PG,
                 {
                     name: rest.name ?? existing.name,
                     locality: rest.locality ?? existing.locality,
                     city: rest.city ?? existing.city,
                 },
-                {
-                    excludeId: existing._id,
-                    baseSlug: slugifyText(rest.slug),
-                },
+                { excludeId: existing._id, ...(wantedSlug ? { baseSlug: wantedSlug } : {}) },
             );
-        } else if (slugFieldsChanged || !existing.slug) {
-            rest.slug = await allocateUniquePgSlug(
-                PG,
-                {
-                    name: rest.name ?? existing.name,
-                    locality: rest.locality ?? existing.locality,
-                    city: rest.city ?? existing.city,
-                },
-                { excludeId: existing._id },
-            );
+            if (existing.slug && nextSlug && nextSlug !== existing.slug) {
+                const previous = new Set(existing.previous_slugs || []);
+                previous.add(existing.slug);
+                previous.delete(nextSlug);
+                existing.previous_slugs = [...previous];
+            }
+            rest.slug = nextSlug;
         }
 
         Object.assign(existing, rest);

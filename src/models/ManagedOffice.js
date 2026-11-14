@@ -40,6 +40,8 @@ const ManagedOfficeSchema = new Schema({
     description: String,
     new_description: String,
     slug: String,
+    /** Earlier URLs of this office; the website redirects them here permanently. */
+    previous_slugs: { type: [String], index: true, default: undefined },
     images: [{
         image: { type: Schema.Types.ObjectId, ref: 'Image' },
         order: Number

@@ -1086,7 +1086,13 @@ class ManageWorkSpaceService {
             if (os) {
                 this._throwException('Opps! Slug is already used by another workspace');
             }
-            await WorkSpace.findOneAndUpdate({ _id: id }, { slug });
+            // Keep the old URL so the website redirects it to the new one.
+            const current = await WorkSpace.findById(id).select('slug').lean();
+            const update = { $set: { slug }, $pull: { previous_slugs: slug } };
+            await WorkSpace.updateOne({ _id: id }, update);
+            if (current?.slug && current.slug !== slug) {
+                await WorkSpace.updateOne({ _id: id }, { $addToSet: { previous_slugs: current.slug } });
+            }
             return true;
         } catch (error) {
             throw (error);

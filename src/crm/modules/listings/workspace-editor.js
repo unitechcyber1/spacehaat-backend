@@ -449,11 +449,13 @@ export async function updateWorkspace(id, body, user) {
     const { set, unset } = await toDbUpdate(body, { isAdmin });
 
     const wanted = slugify(str(body.slug, 200));
+    let addPrevious = '';
     if (wanted && wanted !== existing.slug) {
         if (await WorkSpace.exists({ slug: wanted, _id: { $ne: id } })) {
             throw new ApiError(409, 'That web address (slug) is already used by another space.', 'SLUG_TAKEN');
         }
         set.slug = wanted;
+        if (existing.slug) addPrevious = existing.slug;
     } else if (!existing.slug) {
         set.slug = await uniqueSlug(`${set.name} ${set['location.name'] || ''}`, id);
     }
@@ -474,6 +476,8 @@ export async function updateWorkspace(id, body, user) {
 
     try {
         await WorkSpace.updateOne({ _id: id }, { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) });
+        // The old URL keeps redirecting to this space (website reads previous_slugs).
+        if (addPrevious) await WorkSpace.updateOne({ _id: id }, { $addToSet: { previous_slugs: addPrevious } });
     } catch (err) {
         throw duplicateError(err);
     }
