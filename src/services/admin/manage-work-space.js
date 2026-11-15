@@ -54,6 +54,16 @@ function sanitizeWorkSpaceLocationInPlace(location) {
     }
 }
 
+/** Review count/source and centre size from the admin form; only fields actually sent are written. */
+function reviewAndAreaFields({ ratings_count, ratings_source, area_sqft } = {}) {
+    const out = {};
+    const num = (v) => (v === '' || v === null ? 0 : Number(v));
+    if (ratings_count !== undefined && Number.isFinite(num(ratings_count))) out.ratings_count = Math.max(0, Math.round(num(ratings_count)));
+    if (ratings_source !== undefined) out.ratings_source = String(ratings_source ?? '').trim().slice(0, 40);
+    if (area_sqft !== undefined && Number.isFinite(num(area_sqft))) out.area_sqft = Math.max(0, Math.round(num(area_sqft)));
+    return out;
+}
+
 class ManageWorkSpaceService {
     constructor() {
         this.axiosConfig = {
@@ -438,6 +448,9 @@ class ManageWorkSpaceService {
         city_name,
         opening_hours,
         calendar,
+        ratings_count,
+        ratings_source,
+        area_sqft,
     }) {
         try {
             sanitizeWorkSpaceLocationInPlace(location);
@@ -592,6 +605,7 @@ class ManageWorkSpaceService {
                 added_by_user,
                 space_type_key,
                 calendar,
+                ...reviewAndAreaFields({ ratings_count, ratings_source, area_sqft }),
             })
         } catch (error) {
             throw error;
@@ -777,7 +791,10 @@ class ManageWorkSpaceService {
         virtualSeo,
         added_by_user,
         calendar,
-        planStatus
+        planStatus,
+        ratings_count,
+        ratings_source,
+        area_sqft,
     }) {
         try {
             sanitizeWorkSpaceLocationInPlace(location);
@@ -824,6 +841,7 @@ class ManageWorkSpaceService {
                 virtualSeo,
                 added_by_user,
                 calendar,
+                ...reviewAndAreaFields({ ratings_count, ratings_source, area_sqft }),
             })
         } catch (error) {
             throw error;

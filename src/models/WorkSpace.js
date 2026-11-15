@@ -345,6 +345,11 @@ const WorkSpaceSchema = new Schema({
         }]
     }],
     no_of_seats: Number,
+    /** Carpet/super area of the centre in sq ft, as stated by the operator. */
+    area_sqft: Number,
+    /** How many reviews `ratings` is based on, and where they are (e.g. "Google"). */
+    ratings_count: Number,
+    ratings_source: String,
     starting_price: Number,
     plans: [{
         category: {

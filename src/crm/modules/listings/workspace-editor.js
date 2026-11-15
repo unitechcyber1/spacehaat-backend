@@ -144,6 +144,9 @@ function toEditable(d) {
         seats: d.no_of_seats ?? '',
         startingPrice: d.starting_price ?? '',
         rating: d.ratings || '',
+        ratingCount: d.ratings_count ?? '',
+        ratingSource: d.ratings_source || '',
+        areaSqft: d.area_sqft ?? '',
         currency: d.currency_code || '',
         smallTeam: !!d.small_team_availability,
         enterprise: !!d.enterprise_availability,
@@ -293,6 +296,10 @@ async function toDbUpdate(body, { isAdmin }) {
     put('no_of_seats', num(body.seats) ?? 0);
     put('starting_price', num(body.startingPrice) ?? 0);
     put('ratings', str(body.rating, 10));
+    // Only when the form sends them, so older app versions saving a space don't clear these.
+    if (body.ratingCount !== undefined) put('ratings_count', num(body.ratingCount) ?? 0);
+    if (body.ratingSource !== undefined) put('ratings_source', str(body.ratingSource, 40));
+    if (body.areaSqft !== undefined) put('area_sqft', num(body.areaSqft) ?? 0);
     put('small_team_availability', bool(body.smallTeam));
     put('enterprise_availability', bool(body.enterprise));
     put('is_active', body.isActive !== false);
