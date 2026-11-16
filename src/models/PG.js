@@ -140,6 +140,16 @@ const PGSchema = new Schema(
         previous_slugs: { type: [String], index: true, default: undefined },
         /** A hidden duplicate points at the live listing of the same PG (its URL redirects there). */
         duplicate_of: { type: Schema.Types.ObjectId, ref: 'PG' },
+        /**
+         * Google indexing. `seo_quality_ok` is set by src/scripts/pg-index-quality.js (own description and
+         * photos, not template text); `seo_index_override` lets the team force it: 'auto' | 'index' | 'noindex'.
+         */
+        seo_quality_ok: { type: Boolean, default: undefined },
+        /** Page already earned Google traffic (clicks/impressions) — kept indexed even with template text. */
+        seo_proven_traffic: { type: Boolean, default: undefined },
+        seo_quality_note: String,
+        seo_quality_checked_at: Date,
+        seo_index_override: { type: String, enum: ['auto', 'index', 'noindex'], default: 'auto' },
         userId: { type: Schema.Types.ObjectId, ref: 'User' },
         name: { type: String, required: true, trim: true },
         contactNumber: String,

@@ -68,6 +68,17 @@ export function toPgSlug(doc) {
     return '';
 }
 
+/**
+ * Whether the PG's page should be indexed: the team's override first, then the quality check.
+ * `undefined` when never checked, so the website keeps its default (indexable) for it.
+ */
+export function pgIndexInGoogle(doc) {
+    const override = doc?.seo_index_override;
+    if (override === 'index') return true;
+    if (override === 'noindex') return false;
+    return typeof doc?.seo_quality_ok === 'boolean' ? doc.seo_quality_ok : undefined;
+}
+
 export function formatPgForFrontend(doc) {
     if (!doc) return null;
 
@@ -137,6 +148,7 @@ export function formatPgForFrontend(doc) {
         description: doc.description || '',
         new_description: doc.new_description || '',
         verified: !!doc.verified,
+        index_in_google: pgIndexInGoogle(doc),
         status: doc.status || '',
         priority: doc.priority
             ? {
