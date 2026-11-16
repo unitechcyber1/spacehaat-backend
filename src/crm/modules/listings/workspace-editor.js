@@ -147,6 +147,8 @@ function toEditable(d) {
         ratingCount: d.ratings_count ?? '',
         ratingSource: d.ratings_source || '',
         areaSqft: d.area_sqft ?? '',
+        // Website "Verified on <date>" badge (read-only here; set with its own button).
+        verification: { at: d.verified_at || null, by: d.verified_by || '', method: d.verified_method || '' },
         currency: d.currency_code || '',
         smallTeam: !!d.small_team_availability,
         enterprise: !!d.enterprise_availability,

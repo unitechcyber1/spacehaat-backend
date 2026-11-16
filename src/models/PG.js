@@ -156,6 +156,9 @@ const PGSchema = new Schema(
         verified_method: { type: String, enum: ['call', 'visit', 'documents'] },
         /** `verified` as it was before the 2026-11 reset (it had been set in bulk, without a check). */
         verified_legacy: { type: Boolean, default: undefined },
+        /** CRM inventory check ("Mark verified" in the apps): staff confirmed availability and prices. */
+        crm_verified_at: Date,
+        crm_verified_by: { type: Schema.Types.ObjectId, ref: 'User' },
         userId: { type: Schema.Types.ObjectId, ref: 'User' },
         name: { type: String, required: true, trim: true },
         contactNumber: String,

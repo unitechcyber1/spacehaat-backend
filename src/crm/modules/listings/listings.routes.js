@@ -9,9 +9,11 @@ import {
     getListing,
     listListings,
     listingsMeta,
+    setWebsiteVerification,
     updateListing,
     verifyListing,
 } from './listings.service.js';
+import { getPgEditable, pgEditorOptions } from './pg-editor.js';
 import { inCityScope, listingsByIds } from './workspace-listings.js';
 import {
     cityNameOf,
@@ -20,6 +22,13 @@ import {
     locationOptions,
     uploadWorkspaceImages,
 } from './workspace-editor.js';
+import { getManagedOfficeEditable, managedOfficeEditorOptions } from './managed-office-editor.js';
+
+const VERTICALS = new Set(['coworking', 'managed-office', 'coliving']);
+/** Edit-form shape of a coworking space, managed office or PG (ids are unique across all three). */
+async function editableAny(id) {
+    return (await getEditable(id)) || (await getManagedOfficeEditable(id)) || (await getPgEditable(id));
+}
 
 export const listingsRouter = Router();
 
@@ -83,6 +92,10 @@ listingsRouter.get('/listings', requirePermission(PERMISSIONS.LISTINGS_READ), as
     const limitRaw = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
 
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const vertical = VERTICALS.has(req.query.vertical) ? req.query.vertical : 'coworking';
+    const seatType = typeof req.query.seatType === 'string' ? req.query.seatType : undefined;
+    const gender = typeof req.query.gender === 'string' ? req.query.gender : undefined;
+    const food = req.query.food === 'true';
     const sort = typeof req.query.sort === 'string' ? req.query.sort : undefined;
     const options = { search, sort, withCounts: req.query.counts === 'true' };
     // Always paged over HTTP: the website has thousands of spaces.
@@ -103,6 +116,10 @@ listingsRouter.get('/listings', requirePermission(PERMISSIONS.LISTINGS_READ), as
             hotDesk,
             vastu,
             status,
+            vertical,
+            seatType,
+            gender,
+            food,
             allowedCities: cityScope(req.user),
         },
         options,
@@ -117,8 +134,9 @@ listingsRouter.get('/listings/meta', requirePermission(PERMISSIONS.LISTINGS_READ
 });
 
 // Space form: dropdown data, location cascade, raw editable space, photo upload.
-listingsRouter.get('/listings/editor/options', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (_req, res) => {
-    res.json(await editorOptions());
+listingsRouter.get('/listings/editor/options', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (req, res) => {
+    const v = req.query.vertical;
+    res.json(v === 'coliving' ? await pgEditorOptions() : v === 'managed-office' ? await managedOfficeEditorOptions() : await editorOptions());
 });
 
 listingsRouter.get('/listings/editor/locations', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (req, res) => {
@@ -144,7 +162,7 @@ listingsRouter.get('/listings/:id', requirePermission(PERMISSIONS.LISTINGS_READ)
 });
 
 listingsRouter.get('/listings/:id/edit', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (req, res) => {
-    const item = await getEditable(String(req.params.id));
+    const item = await editableAny(String(req.params.id));
     if (!item) throw new ApiError(404, 'Space not found', 'NOT_FOUND');
     assertCityAllowed(req, item.labels.city);
     res.json({ item });
@@ -158,7 +176,7 @@ listingsRouter.post('/listings', requirePermission(PERMISSIONS.LISTINGS_WRITE), 
 
 listingsRouter.patch('/listings/:id', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (req, res) => {
     const id = String(req.params.id);
-    const existing = await getEditable(id);
+    const existing = await editableAny(id);
     if (!existing) throw new ApiError(404, 'Space not found', 'NOT_FOUND');
     assertCityAllowed(req, existing.labels.city);
     assertCityAllowed(req, await cityNameOf(req.body?.location?.city));
@@ -174,6 +192,17 @@ listingsRouter.post('/listings/:id/verify', requirePermission(PERMISSIONS.LISTIN
     const item = await verifyListing(String(req.params.id), req.user?.id);
     if (!item) throw new ApiError(404, 'Listing not found', 'NOT_FOUND');
     res.json({ item });
+});
+
+// Website "Verified on <date>" badge (coworking spaces and PGs): { method: call|visit|documents } or { remove: true }.
+listingsRouter.post('/listings/:id/website-verification', requirePermission(PERMISSIONS.LISTINGS_WRITE), async (req, res) => {
+    const id = String(req.params.id);
+    const existing = await getListing(id);
+    if (!existing) throw new ApiError(404, 'Listing not found', 'NOT_FOUND');
+    assertCityAllowed(req, existing.city);
+    const verification = await setWebsiteVerification(id, req.body || {}, req.user);
+    if (!verification) throw new ApiError(404, 'Only coworking spaces and PGs have the website badge', 'NOT_SUPPORTED');
+    res.json({ verification });
 });
 
 listingsRouter.delete('/listings/:id', requireRole('admin'), async (req, res) => {

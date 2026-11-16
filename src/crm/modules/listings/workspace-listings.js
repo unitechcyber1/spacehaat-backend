@@ -6,10 +6,10 @@ import models from '../../../models/index.js';
  * Each space is turned into the listing shape the CRM apps, proposals, PDFs and Smart Match already use,
  * so those keep working unchanged. Old CRM `Listing` docs are still read for proposals that point at them.
  */
-const { WorkSpace, Listing, City, Amenty, Category } = models;
+const { WorkSpace, Listing, City, Amenty, Category, ManagedOffice } = models;
 
-const SITE_URL = (process.env.PUBLIC_SITE_URL || 'https://spacewallah.com').replace(/\/$/, '');
-const ADMIN_URL = (process.env.FRONTEND_URL || 'https://admin.spacehaat.com').replace(/\/$/, '');
+export const SITE_URL = (process.env.PUBLIC_SITE_URL || 'https://spacewallah.com').replace(/\/$/, '');
+export const ADMIN_URL = (process.env.FRONTEND_URL || 'https://admin.spacehaat.com').replace(/\/$/, '');
 const DAY_PASS = '6231b1722a52af3ddaa73a44';
 const VIRTUAL_OFFICE = '6231bca42a52af3ddaa73ab1';
 const MS_DAY = 864e5;
@@ -21,7 +21,7 @@ export const LISTING_STATUSES = {
     inprogress: { key: 'inprogress', label: 'In progress' },
     reject: { key: 'rejected', label: 'Rejected' },
 };
-const STATUS_FROM_KEY = { approved: 'approve', pending: 'pending', inprogress: 'inprogress', rejected: 'reject' };
+export const STATUS_FROM_KEY = { approved: 'approve', pending: 'pending', inprogress: 'inprogress', rejected: 'reject' };
 
 /** Plan category name → CRM space type + pricing field. */
 const PLAN_KINDS = [
@@ -54,7 +54,7 @@ export const POPULATE = [
     { path: 'brand', select: 'name' },
 ];
 
-const daysSince = (d) => Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / MS_DAY));
+export const daysSince = (d) => Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / MS_DAY));
 
 export function freshOfDays(days) {
     if (days <= 5) return { state: 'fresh', label: days === 0 ? 'Verified today' : `Verified ${days}d ago`, days };
@@ -69,13 +69,13 @@ export function freshnessRange(freshness) {
     return { $lt: new Date(now - 14 * MS_DAY) };
 }
 
-const stripHtml = (s) => String(s || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+export const stripHtml = (s) => String(s || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ').trim();
 const firstOf = (v) => (Array.isArray(v) ? v[0] : v);
 const person = (c) => ({ name: c?.name || '', phone: c?.phone_number || c?.phone || '' });
 
 const DAY_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-function hours(h = {}) {
+export function hours(h = {}) {
     const mon = h.monday || {};
     const open = (d) => d && (d.is_open_24 || (!d.is_closed && String(d.from || '').trim()));
     const timings = mon.is_open_24 ? 'Open 24 hours' : open(mon) ? `${mon.from} – ${mon.to}` : '';
@@ -137,6 +137,7 @@ export function toCrmListing(d) {
         _id: id,
         id,
         source: 'workspace',
+        vertical: 'coworking',
         name: d.name,
         operator: d.name,
         brand: d.brand?.name || '',
@@ -198,7 +199,7 @@ export function toCrmListing(d) {
     };
 }
 
-const escape = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export const escape = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** City names the CRM uses ↔ how the website stores them. */
 const CITY_ALIASES = {
@@ -219,7 +220,7 @@ export function inCityScope(scope, city) {
     return scope.some((c) => aliasesOf(c).some((a) => have.has(a)));
 }
 
-async function cityIds(names) {
+export async function cityIds(names) {
     const wanted = [...new Set(names.flatMap((n) => CITY_ALIASES[String(n).toLowerCase().trim()] || [String(n).toLowerCase().trim()]))];
     if (!wanted.length) return [];
     const rows = await City.find({ name: { $in: wanted.map((n) => new RegExp(`^${escape(n)}$`, 'i')) } }).select('_id').lean();
@@ -336,7 +337,19 @@ export async function listingsByIds(ids) {
     if (!valid.length) return [];
     const ws = await WorkSpace.find({ _id: { $in: valid } }).populate(POPULATE).lean();
     const map = new Map(ws.map((d) => [String(d._id), toCrmListing(d)]));
-    const missing = valid.filter((id) => !map.has(id));
+    let missing = valid.filter((id) => !map.has(id));
+    if (missing.length) {
+        const { MO_POPULATE, toCrmManagedOffice } = await import('./managed-office-listings.js');
+        const mos = await ManagedOffice.find({ _id: { $in: missing } }).populate(MO_POPULATE).lean();
+        for (const d of mos) map.set(String(d._id), toCrmManagedOffice(d));
+        missing = valid.filter((id) => !map.has(id));
+    }
+    if (missing.length) {
+        const { PG_POPULATE, toCrmPg } = await import('./pg-listings.js');
+        const pgs = await models.PG.find({ _id: { $in: missing }, delete: { $ne: true } }).populate(PG_POPULATE).lean();
+        for (const d of pgs) map.set(String(d._id), toCrmPg(d));
+        missing = valid.filter((id) => !map.has(id));
+    }
     if (missing.length) {
         const old = await Listing.find({ _id: { $in: missing } }).lean();
         for (const l of old) map.set(String(l._id), legacyRow(l));
@@ -348,11 +361,12 @@ export async function listingsByIds(ids) {
 export async function existingListingIds(ids) {
     const valid = (ids || []).map(String).filter(isId);
     if (!valid.length) return [];
-    const [ws, old] = await Promise.all([
+    const [ws, mo, old] = await Promise.all([
         WorkSpace.find({ _id: { $in: valid } }).select('_id').lean(),
+        ManagedOffice.find({ _id: { $in: valid } }).select('_id').lean(),
         Listing.find({ _id: { $in: valid } }).select('_id').lean(),
     ]);
-    const found = new Set([...ws, ...old].map((d) => String(d._id)));
+    const found = new Set([...ws, ...mo, ...old].map((d) => String(d._id)));
     return valid.filter((id) => found.has(id));
 }
 
@@ -362,7 +376,7 @@ export async function listingById(id) {
 }
 
 export function isWorkspaceListing(l) {
-    return l?.source === 'workspace';
+    return l?.source === 'workspace' || l?.source === 'managed-office' || l?.source === 'pg';
 }
 
 export { WorkSpace };

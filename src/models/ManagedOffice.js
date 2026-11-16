@@ -157,7 +157,10 @@ const ManagedOfficeSchema = new Schema({
         type: String,
         enum: ['seller', 'admin'],
         default: 'admin'
-    }
+    },
+    /** Sales CRM: when staff last confirmed availability and prices ("Mark verified"). */
+    crm_verified_at: Date,
+    crm_verified_by: { type: Schema.Types.ObjectId, ref: 'User' }
 },
     mongoSchemaOptions
 );
