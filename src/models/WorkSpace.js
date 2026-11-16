@@ -347,6 +347,10 @@ const WorkSpaceSchema = new Schema({
     no_of_seats: Number,
     /** Carpet/super area of the centre in sq ft, as stated by the operator. */
     area_sqft: Number,
+    /** Public "Verified on <date>" badge, set from the admin ("Mark as verified"). */
+    verified_at: Date,
+    verified_by: String,
+    verified_method: { type: String, enum: ['call', 'visit', 'documents'] },
     /** How many reviews `ratings` is based on, and where they are (e.g. "Google"). */
     ratings_count: Number,
     ratings_source: String,

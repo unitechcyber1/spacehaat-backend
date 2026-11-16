@@ -147,7 +147,9 @@ export function formatPgForFrontend(doc) {
         contactSchedule: doc.selectTimeSchedule || '',
         description: doc.description || '',
         new_description: doc.new_description || '',
-        verified: !!doc.verified,
+        verified: !!doc.verified && !!doc.verified_at,
+        verified_at: doc.verified_at ? new Date(doc.verified_at).toISOString() : null,
+        verified_method: doc.verified_at ? doc.verified_method || '' : '',
         index_in_google: pgIndexInGoogle(doc),
         status: doc.status || '',
         priority: doc.priority

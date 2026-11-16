@@ -150,6 +150,12 @@ const PGSchema = new Schema(
         seo_quality_note: String,
         seo_quality_checked_at: Date,
         seo_index_override: { type: String, enum: ['auto', 'index', 'noindex'], default: 'auto' },
+        /** Public "Verified on <date>" badge, set from the admin; `verified` follows it. */
+        verified_at: Date,
+        verified_by: String,
+        verified_method: { type: String, enum: ['call', 'visit', 'documents'] },
+        /** `verified` as it was before the 2026-11 reset (it had been set in bulk, without a check). */
+        verified_legacy: { type: Boolean, default: undefined },
         userId: { type: Schema.Types.ObjectId, ref: 'User' },
         name: { type: String, required: true, trim: true },
         contactNumber: String,
