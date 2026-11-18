@@ -9,6 +9,7 @@ import {
     getListing,
     listListings,
     listingsMeta,
+    setListingStatus,
     setWebsiteVerification,
     updateListing,
     verifyListing,
@@ -190,6 +191,17 @@ listingsRouter.post('/listings/:id/verify', requirePermission(PERMISSIONS.LISTIN
     if (!existing) throw new ApiError(404, 'Listing not found', 'NOT_FOUND');
     assertCityAllowed(req, existing.city);
     const item = await verifyListing(String(req.params.id), req.user?.id);
+    if (!item) throw new ApiError(404, 'Listing not found', 'NOT_FOUND');
+    res.json({ item });
+});
+
+// Approve / Pending / In progress / Reject from the listing page: { status }. Admins only.
+listingsRouter.post('/listings/:id/status', requireRole('admin'), async (req, res) => {
+    const id = String(req.params.id);
+    const existing = await getListing(id);
+    if (!existing) throw new ApiError(404, 'Listing not found', 'NOT_FOUND');
+    assertCityAllowed(req, existing.city);
+    const item = await setListingStatus(id, String(req.body?.status || ''));
     if (!item) throw new ApiError(404, 'Listing not found', 'NOT_FOUND');
     res.json({ item });
 });

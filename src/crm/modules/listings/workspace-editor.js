@@ -50,14 +50,16 @@ export async function editorOptions() {
     if (optionsCache && optionsCache.at > Date.now() - 10 * 60e3) return optionsCache.data;
     const [brands, amenities, categories, countries] = await Promise.all([
         Brand.find({ type: 'coworking' }).select('name').sort({ name: 1 }).lean(),
-        Amenty.find({ for_coWorking: true }).select('name category').sort({ name: 1 }).lean(),
+        Amenty.find({ for_coWorking: true }).select('name category default_for_coWorking').sort({ name: 1 }).lean(),
         Category.find({ active: true }).select('name').sort({ name: 1 }).lean(),
         Country.find({}).select('name for_coWorking').sort({ name: 1 }).lean(),
     ]);
     const opt = (r) => ({ id: String(r._id), name: r.name });
     const data = {
         brands: brands.map(opt),
-        amenities: amenities.map((a) => ({ ...opt(a), category: a.category || 'others' })),
+        amenities: amenities.map((a) => ({ ...opt(a), category: a.category || 'others', default: Boolean(a.default_for_coWorking) })),
+        // Ticked on a new coworking space by default.
+        defaultAmenities: amenities.filter((a) => a.default_for_coWorking).map((a) => String(a._id)),
         planTypes: categories.map(opt),
         // Coworking countries first (India), then the rest.
         countries: [...countries].sort((a, b) => Number(!!b.for_coWorking) - Number(!!a.for_coWorking)).map(opt),

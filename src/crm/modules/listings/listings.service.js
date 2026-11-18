@@ -9,10 +9,12 @@ import {
     toCrmListing,
     workspaceQuery,
 } from './workspace-listings.js';
-import { createWorkspace, saveImageTitles, updateWorkspace } from './workspace-editor.js';
+import { STATUS_TO_DB, createWorkspace, saveImageTitles, updateWorkspace } from './workspace-editor.js';
+import managePg from '../../../services/admin/manage-pg.js';
+import { resetUrlRedirectsCache } from '../../../services/user/url-redirects.js';
 import { MO_POPULATE, ManagedOffice, managedOfficeQuery, managedOfficeStatusCounts, toCrmManagedOffice } from './managed-office-listings.js';
 import { createManagedOffice, updateManagedOffice } from './managed-office-editor.js';
-import { PG, PG_POPULATE, pgQuery, pgStatusCounts, toCrmPg } from './pg-listings.js';
+import { PG, PG_POPULATE, PG_STATUS_FROM_KEY, pgQuery, pgStatusCounts, toCrmPg } from './pg-listings.js';
 import { createPgFromCrm, updatePgFromCrm } from './pg-editor.js';
 
 export { freshOfDays };
@@ -112,6 +114,42 @@ export async function updateListing(id, body, user) {
 
 export async function deleteListing() {
     throw new ApiError(400, MANAGED, 'MANAGED_IN_ADMIN');
+}
+
+/** Coworking / managed office rejected → out of every priority list (same as the admin status switch). */
+const PRIORITY_RESET = {
+    'priority.overall.is_active': false,
+    'priority.overall.order': 1000,
+    'priority.location.is_active': false,
+    'priority.location.order': 1000,
+    'priority.micro_location.is_active': false,
+    'priority.micro_location.order': 1000,
+    'virtual_priority.location.is_active': false,
+    'virtual_priority.location.order': 1000,
+};
+
+/**
+ * Approve / Pending / In progress / Reject from the listing page (admins only).
+ * `status` is the app key: approved | pending | inprogress | rejected.
+ */
+export async function setListingStatus(id, status) {
+    const [isMo, isPg] = await Promise.all([ManagedOffice.exists({ _id: id }), PG.exists({ _id: id })]);
+    if (isPg) {
+        const dbStatus = PG_STATUS_FROM_KEY[status];
+        if (!dbStatus) throw new ApiError(400, 'Unknown status', 'BAD_STATUS');
+        await managePg.changePgStatus({ pgId: String(id), status: dbStatus });
+    } else {
+        const dbStatus = STATUS_TO_DB[status];
+        if (!dbStatus) throw new ApiError(400, 'Unknown status', 'BAD_STATUS');
+        const Model = isMo ? ManagedOffice : WorkSpace;
+        const existing = await Model.findById(id).select('status').lean();
+        if (!existing) return null;
+        const $set = { status: dbStatus, ...(dbStatus === 'reject' && existing.status !== 'reject' ? PRIORITY_RESET : {}) };
+        await Model.updateOne({ _id: id }, { $set });
+    }
+    // A newly approved listing must not keep answering "410 Gone" from the cached removed-URL list.
+    resetUrlRedirectsCache();
+    return listingById(id);
 }
 
 /** "Mark verified": staff confirmed availability and prices today. Only touches the CRM fields. */

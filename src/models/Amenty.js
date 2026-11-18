@@ -14,6 +14,11 @@ const AmentySchema = new Schema({
             type: Boolean,
             default: false
         },
+        /** Ticked by default on every new coworking space (can still be unticked per space). */
+        default_for_coWorking: {
+            type: Boolean,
+            default: false
+        },
         for_office: {
             type: Boolean,
             default: false

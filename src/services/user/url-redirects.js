@@ -95,4 +95,9 @@ export async function getUrlRedirects() {
     return data;
 }
 
+/** Next request rebuilds the list (called when a listing's status changes). */
+export function resetUrlRedirectsCache() {
+    cache = null;
+}
+
 export const _test = { buildMap, compute };

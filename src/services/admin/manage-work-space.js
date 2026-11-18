@@ -142,9 +142,9 @@ class ManageWorkSpaceService {
             let result = {};
             let condition = {};
             if (name) {
-                /** TODO $text search will be implemented */
-                name = name.replace(/[^A-Za-z0-9 ]/g, "");
-                condition['name'] = { '$regex': `^(\s+${name}|^${name})`, '$options': 'i' };
+                // Match anywhere in the name ("orchid" finds "Spring House Orchid Centre"), special characters escaped.
+                const q = String(name).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                if (q) condition['name'] = { $regex: q, $options: 'i' };
             }
             if (productId) {
                 // productId removed from WorkSpace collection; ignore filter for backward compatibility

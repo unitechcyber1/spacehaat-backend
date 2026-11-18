@@ -58,17 +58,18 @@ class ManageAmentyService {
         }
     }
 
-    async addAmenty({ category, for_flatspace, for_coWorking, for_office, for_coLiving, for_builder_project, name, icon }) {
+    async addAmenty({ category, for_flatspace, for_coWorking, default_for_coWorking, for_office, for_coLiving, for_builder_project, name, icon }) {
         try {
-            return await Amenty.create({ category, for_flatspace, for_coWorking, for_office, for_coLiving, for_builder_project, name, icon });
+            return await Amenty.create({ category, for_flatspace, for_coWorking, default_for_coWorking: Boolean(default_for_coWorking) && Boolean(for_coWorking), for_office, for_coLiving, for_builder_project, name, icon });
         } catch (error) {
             throw error;
         }
     }
 
-    async editAmenty({ amentyId, name, for_flatspace, for_coWorking, for_office, for_coLiving, for_builder_project, category, icon, updated_by }) {
+    async editAmenty({ amentyId, name, for_flatspace, for_coWorking, default_for_coWorking, for_office, for_coLiving, for_builder_project, category, icon, updated_by }) {
         try {
-            return await Amenty.findOneAndUpdate({ _id: amentyId }, { name, for_flatspace, for_coWorking, for_office, for_coLiving, for_builder_project, category, icon, updated_by },
+            return await Amenty.findOneAndUpdate({ _id: amentyId }, { name, for_flatspace, for_coWorking, for_office, for_coLiving, for_builder_project, category, icon, updated_by,
+                ...(default_for_coWorking === undefined ? {} : { default_for_coWorking: Boolean(default_for_coWorking) && Boolean(for_coWorking) }) },
                 this.updateOptions);
         } catch (e) {
             throw (e)
