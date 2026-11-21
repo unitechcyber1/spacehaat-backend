@@ -9,6 +9,8 @@
  *   node src/scripts/convert-images-webp.js --sample 24                    # preview (default)
  *   node src/scripts/convert-images-webp.js --apply --only pg --limit 200  # convert 200 PG photos
  *   node src/scripts/convert-images-webp.js --rollback --only pg           # point records back at originals
+ *   node src/scripts/convert-images-webp.js --cache-headers --live-only    # preview: which files lack Cache-Control
+ *   node src/scripts/convert-images-webp.js --cache-headers --live-only --apply   # add it (file content unchanged)
  *
  * Options:
  *   --only pg,coworking,coliving,office,managed,misnamed   sections (default: all)
@@ -55,12 +57,13 @@ const SECTIONS = {
 const SAMPLE_WEIGHTS = { pg: 10, coworking: 4, coliving: 4, office: 2, managed: 0, misnamed: 4 };
 
 function parseArgs(argv) {
-    const args = { sample: 24, concurrency: 3, limit: Infinity, only: null, apply: false, rollback: false, liveOnly: false, out: path.join(os.homedir(), 'Desktop', 'Image WebP preview') };
+    const args = { sample: 24, concurrency: 3, limit: Infinity, only: null, apply: false, rollback: false, liveOnly: false, cacheHeaders: false, out: path.join(os.homedir(), 'Desktop', 'Image WebP preview') };
     for (let i = 0; i < argv.length; i += 1) {
         const a = argv[i];
         const next = () => argv[(i += 1)];
         if (a === '--apply') args.apply = true;
         else if (a === '--rollback') args.rollback = true;
+        else if (a === '--cache-headers') args.cacheHeaders = true;
         else if (a === '--live-only') args.liveOnly = true;
         else if (a === '--sample') args.sample = Number(next());
         else if (a === '--limit') args.limit = Number(next());
@@ -70,6 +73,7 @@ function parseArgs(argv) {
         else throw new Error(`Unknown option ${a}`);
     }
     if (args.apply && args.rollback) throw new Error('Use either --apply or --rollback, not both.');
+    if (args.cacheHeaders && args.rollback) throw new Error('--cache-headers cannot be combined with --rollback.');
     return args;
 }
 
@@ -273,6 +277,62 @@ async function apply(db, args, sections) {
     console.log('Finished', stats);
 }
 
+/**
+ * --cache-headers: give photos already in S3 a one-year browser cache header, so CloudFront passes
+ * it on (custom CloudFront response headers need the Business plan). Each file is copied onto itself
+ * with its content type, storage class and metadata kept; the image bytes do not change.
+ * Without --apply it only checks a sample (--sample N) and reports how many lack the header.
+ */
+const CACHE_CONTROL = 'public, max-age=31536000, immutable';
+
+async function cacheHeaders(db, args, sections) {
+    const images = db.collection('images');
+    const s3 = new aws.S3({ region: storage.s3.region, signatureVersion: 'v4', accessKeyId: storage.s3.key, secretAccessKey: storage.s3.secret });
+    const Bucket = storage.s3.bucket;
+    const ids = new Set();
+    for (const section of sections.filter((s) => SECTIONS[s])) {
+        for (const id of await imageIdsFor(db, SECTIONS[section].collection, args.liveOnly)) ids.add(String(id));
+    }
+    let docs = await images.find({ _id: { $in: [...ids].map((id) => new mongoose.Types.ObjectId(id)) }, s3_link: { $type: 'string', $ne: '' } })
+        .project({ s3_link: 1 }).toArray();
+    const keys = [...new Set(docs.map((d) => keyOf(d.s3_link)).filter(Boolean))];
+    const work = args.apply ? keys.slice(0, args.limit) : keys.sort(() => Math.random() - 0.5).slice(0, args.sample);
+    console.log(`${keys.length} files used by ${args.liveOnly ? 'live ' : ''}listings; checking ${work.length}${args.apply ? '' : ' (preview)'}`);
+    const stats = { alreadySet: 0, updated: 0, wouldUpdate: 0, missing: 0, failed: 0 };
+    let done = 0;
+    await pool(work, args.concurrency, async (Key) => {
+        try {
+            const head = await s3.headObject({ Bucket, Key }).promise();
+            if (head.CacheControl === CACHE_CONTROL) { stats.alreadySet += 1; return; }
+            if (!args.apply) {
+                stats.wouldUpdate += 1;
+                if (stats.wouldUpdate <= 5) console.log(`  would set: ${Key} (${head.ContentType}, now: ${head.CacheControl || 'none'})`);
+                return;
+            }
+            await s3.copyObject({
+                Bucket, Key, CopySource: `${Bucket}/${Key.split('/').map(encodeURIComponent).join('/')}`,
+                MetadataDirective: 'REPLACE', CacheControl: CACHE_CONTROL,
+                ContentType: head.ContentType, Metadata: head.Metadata,
+                ...(head.ContentEncoding ? { ContentEncoding: head.ContentEncoding } : {}),
+                ...(head.ContentDisposition ? { ContentDisposition: head.ContentDisposition } : {}),
+                ...(head.StorageClass ? { StorageClass: head.StorageClass } : {}),
+            }).promise();
+            stats.updated += 1;
+        } catch (e) {
+            if (e.code === 'NotFound') stats.missing += 1;
+            else { stats.failed += 1; console.log(`  failed ${Key}: ${e.message}`); }
+        } finally {
+            done += 1;
+            if (args.apply && done % 500 === 0) console.log(`  ${done}/${work.length}`, JSON.stringify(stats));
+        }
+    });
+    console.log('Finished', stats);
+    if (!args.apply && work.length) {
+        const share = stats.wouldUpdate / work.length;
+        console.log(`About ${Math.round(share * 100)}% lack the header, so roughly ${Math.round(share * keys.length)} of ${keys.length} files would be updated with --apply.`);
+    }
+}
+
 async function rollback(db, sections) {
     const images = db.collection('images');
     for (const section of sections) {
@@ -298,7 +358,8 @@ async function main() {
     for (const s of sections) if (!all.includes(s)) throw new Error(`Unknown section ${s}; use ${all.join(', ')}`);
     await mongoose.connect(database.uri);
     const db = mongoose.connection.db;
-    if (args.apply) await apply(db, args, sections);
+    if (args.cacheHeaders) await cacheHeaders(db, args, sections);
+    else if (args.apply) await apply(db, args, sections);
     else if (args.rollback) await rollback(db, sections);
     else await preview(db, args, sections);
 }
