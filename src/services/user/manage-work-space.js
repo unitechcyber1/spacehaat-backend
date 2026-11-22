@@ -20,7 +20,6 @@ const blackListWS = [
     'innov8-dlf-cyber-city-gurugram',
     'innov8-film-city-film-city-noida',
     'oyo-powerstation-golf-course-extension-gurugram',
-    'spring-house-golf-course-road-a977-gurugram',
     'spring-house-sector-44-dd59-gurugram',
     'the-office-pass-sector-39-gurugram',
 ]
