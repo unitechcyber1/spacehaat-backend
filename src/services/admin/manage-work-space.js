@@ -465,9 +465,6 @@ class ManageWorkSpaceService {
             let totalCount = await WorkSpace.countDocuments();
             let finalCount = totalCount + 1;
             if (location?.latitude && location?.longitude) {
-                const countryInfo = findCountryByCoordinate(+location.latitude, +location.longitude);
-                let country_name = countryInfo.name;
-                let currency_code = getCountry(country_name).currency;
                 geometry = this._setGeoLocation(location);
             } else {
                 // Avoid Mongoose default `{ type: 'Point' }` without coordinates (breaks 2dsphere index).
@@ -803,11 +800,11 @@ class ManageWorkSpaceService {
                     ? this._setGeoLocation(location)
                     : null;
             const slug = await this._createSlug(id, name, location.name);
-            const countryInfo = findCountryByCoordinate(+location.latitude, +location.longitude);
-            let country_name = countryInfo.name;
-            let currency_code = getCountry(country_name).currency;
             const country_details = await Country.findOne({ _id: location.country });
             let country_dbname = country_details.name;
+            // A listing can have no pin (the locator throws without one): use its saved country then.
+            const country_name = (geometry && findCountryByCoordinate(+location.latitude, +location.longitude)?.name) || country_dbname;
+            let currency_code = getCountry(country_name).currency;
             return await WorkSpace.findOneAndUpdate({ _id: id }, {
                 name,
                 description,

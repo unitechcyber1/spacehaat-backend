@@ -702,18 +702,22 @@ class ManageWorkSpaceService {
                 if (!livspace) {
                     return res.status(404).send("Coliving not found");
                 }
+                const hasPin = Number.isFinite(livspace.location?.latitude) && Number.isFinite(livspace.location?.longitude);
                 let spaces = await WorkSpace.find({
-                    _id: { $ne: livspace._id },
                     "status": "approve",
                     "location.city": city,
-                    "location.latitude": {
-                        $gte: livspace.location.latitude - 0.027,
-                        $lte: livspace.location.latitude + 0.027,
-                    },
-                    "location.longitude": {
-                        $gte: livspace.location.longitude - 0.027,
-                        $lte: livspace.location.longitude + 0.027,
-                    },
+                    // No pin: nothing can be "near" it, so only the same-area spaces below are returned.
+                    ...(hasPin ? {
+                        _id: { $ne: livspace._id },
+                        "location.latitude": {
+                            $gte: livspace.location.latitude - 0.027,
+                            $lte: livspace.location.latitude + 0.027,
+                        },
+                        "location.longitude": {
+                            $gte: livspace.location.longitude - 0.027,
+                            $lte: livspace.location.longitude + 0.027,
+                        },
+                    } : { _id: { $in: [] } }),
                 })
                     .populate('images.image')
                     .populate('seo.twitter.image')

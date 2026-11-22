@@ -157,6 +157,7 @@ const WorkSpaceSchema = new Schema({
         landmark: String,
         landmark_distance: String,
         metro_stop_landmark: String,
+        nearby_landmark: String,
         ferry_stop_landmark: String,
         ferry_stop_distance: String,
         bus_stop_landmark: String,
