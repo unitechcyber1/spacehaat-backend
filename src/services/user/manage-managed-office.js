@@ -89,8 +89,11 @@ class ManageManagedOfficeService {
         minPrice,
         maxPrice,
         min_seats,
+        building,
     } = {}) {
         const condition = { status: 'approve', is_active: { $ne: false } };
+        const buildingId = parseObjectIdParam(building);
+        if (buildingId) condition.building_id = buildingId;
         let sort = { 'priority.overall.is_active': -1, 'priority.overall.order': 1, added_on: -1, _id: -1 };
 
         const cityId = parseObjectIdParam(city);

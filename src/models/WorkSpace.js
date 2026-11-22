@@ -127,6 +127,8 @@ const WorkSpaceSchema = new Schema({
             }
         }
     },
+    /** Office building this centre is in (`Building`), for the website's building pages. */
+    building_id: { type: Schema.Types.ObjectId, ref: 'Building', index: true, sparse: true },
     location: {
         name: String,
         name1: String,

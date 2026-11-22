@@ -139,10 +139,14 @@ class ManageWorkSpaceService {
         locations,
         virtual,
         brand,
-        brand_name
+        brand_name,
+        building
     }) {
         try {
             let condition = { status: 'approve', slug: { $nin: blackListWS } };
+            // ?building=<Building id>: the centres in one office building.
+            const buildingId = parseObjectIdParam(building);
+            if (buildingId) condition.building_id = buildingId;
             let result = {};
             let aggregatePipeline = [];
             let parseLocations;

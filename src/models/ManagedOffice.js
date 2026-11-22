@@ -49,6 +49,8 @@ const ManagedOfficeSchema = new Schema({
     amenties: [{ type: Schema.Types.ObjectId, ref: 'Amenty' }],
     seo: seoSchema,
     new_seo: seoSchema,
+    /** Office building this office is in (`Building`), for the website's building pages. */
+    building_id: { type: Schema.Types.ObjectId, ref: 'Building', index: true, sparse: true },
     location: {
         name: String,
         floor: String,

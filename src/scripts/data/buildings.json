@@ -1,0 +1,659 @@
+[
+  {
+    "slug": "jmd-megapolis-gurgaon",
+    "name": "JMD Megapolis",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "desqworx-sohna-road-gurugram",
+        "name": "DesqWorx JMD Megapolis"
+      },
+      {
+        "type": "coworking",
+        "slug": "the-office-pass-sohna-road-gurugram",
+        "name": "The Office Pass JMD Megapolis"
+      },
+      {
+        "type": "coworking",
+        "slug": "vorkzone-sohna-road-0cfd-gurugram",
+        "name": "Vorkzone JMD Megapolis"
+      },
+      {
+        "type": "coworking",
+        "slug": "workbee-jmd-megapolis",
+        "name": "Work Bee India JMD Megapolis"
+      }
+    ]
+  },
+  {
+    "slug": "bhutani-cyber-park-noida",
+    "name": "Bhutani Cyber Park",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "indiqube-logix-cyber-park",
+        "name": "IndiQube Bhutani Cyberpark"
+      },
+      {
+        "type": "coworking",
+        "slug": "nukleus-office-solutions-noida-sector-62",
+        "name": "Nukleus Bhutani Cyberpark"
+      },
+      {
+        "type": "coworking",
+        "slug": "91springboard-bhutani-cyberpark-sector-62",
+        "name": "91Springboard Bhutani Cyberpark"
+      },
+      {
+        "type": "coworking",
+        "slug": "coworkzen-bhutani-cyberpark-sector-62-noida",
+        "name": "Coworkzen Bhutani Cyberpark"
+      }
+    ]
+  },
+  {
+    "slug": "parinee-crescenzo-mumbai",
+    "name": "Parinee Crescenzo",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "awfis-bkc",
+        "name": "Awfis Parinee Crescenzo"
+      },
+      {
+        "type": "coworking",
+        "slug": "innov8-parinee-crescanzobkc-bandra-kurla-complex-mumbai",
+        "name": "Innov8 Parinee Crescenzo"
+      },
+      {
+        "type": "coworking",
+        "slug": "the-executive-centre-parinee-crescenzo-mumbai",
+        "name": "The Executive Centre Parinee Crescenzo"
+      },
+      {
+        "type": "coworking",
+        "slug": "efc-offices-parinee-crescenzo-bkc-mumbai",
+        "name": "EFC Offices Parinee Crescenzo"
+      }
+    ]
+  },
+  {
+    "slug": "vatika-triangle-gurgaon",
+    "name": "Vatika Triangle",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "vatika-triangle-sushant-lok-1-gurugram",
+        "name": "Vatika Business Centre Vatika Triangle"
+      },
+      {
+        "type": "coworking",
+        "slug": "91-spring-sector-28-gurugram",
+        "name": "91Springboard Vatika Triangle"
+      },
+      {
+        "type": "managed-office",
+        "slug": "91springboard-mgroadgurgaon",
+        "name": "91Springboard"
+      }
+    ]
+  },
+  {
+    "slug": "regal-building-delhi",
+    "name": "Regal Building",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "innov8-connaught-place-e773-delhi",
+        "name": "Innov8 Regal"
+      },
+      {
+        "type": "coworking",
+        "slug": "nukleus-regal-building-cp-delhi",
+        "name": "Nukleus Regal"
+      },
+      {
+        "type": "coworking",
+        "slug": "spacetime-regal-building-delhi",
+        "name": "Spacetime Regal Building"
+      }
+    ]
+  },
+  {
+    "slug": "boston-house-mumbai",
+    "name": "Boston House",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "innov8-boston-house",
+        "name": "Innov8 Boston House"
+      },
+      {
+        "type": "coworking",
+        "slug": "inspire-cospaces-bkc-mumbai",
+        "name": "Inspire Cospaces"
+      },
+      {
+        "type": "coworking",
+        "slug": "inspire-cospaces-boston-house-andheri-east-mumbai",
+        "name": "Inspire Cospaces Boston House"
+      }
+    ]
+  },
+  {
+    "slug": "augusta-point-gurgaon",
+    "name": "Augusta Point",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "awfis-augusta-point",
+        "name": "Awfis Augusta Point Parsvnath Exotica"
+      },
+      {
+        "type": "coworking",
+        "slug": "91-spring-board-sector-53-gurgaon",
+        "name": "91springboard Augusta Point"
+      },
+      {
+        "type": "managed-office",
+        "slug": "91springboard-augusta-point",
+        "name": "91Springboard"
+      }
+    ]
+  },
+  {
+    "slug": "unitech-cyber-park-gurgaon",
+    "name": "Unitech Cyber Park",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "awfis-unitech-cyber-park",
+        "name": "Awfis Unitech Cyber Park"
+      },
+      {
+        "type": "managed-office",
+        "slug": "awfis-unitech-cyber-park",
+        "name": "awfis"
+      },
+      {
+        "type": "managed-office",
+        "slug": "indiqube-ucpsector-39-sector39gurgaon",
+        "name": "IndiQube"
+      }
+    ]
+  },
+  {
+    "slug": "dlf-corporate-greens-gurgaon",
+    "name": "DLF Corporate Greens",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "coelevate-dlf-corporate-greens",
+        "name": "CoElevate DLF Corporate Greens"
+      },
+      {
+        "type": "coworking",
+        "slug": "land-2-roof-dlf-corporate-greens",
+        "name": "Land 2 Roof DLF Corporate Greens"
+      },
+      {
+        "type": "coworking",
+        "slug": "spring-house-dlf-corporate-greens-gurgaon",
+        "name": "Spring House DLF Corporate Greens"
+      }
+    ]
+  },
+  {
+    "slug": "world-trade-tower-noida",
+    "name": "World Trade Tower",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "smartworks-world-trade-tower-sector-16-noida",
+        "name": "Smartworks World Trade Tower"
+      },
+      {
+        "type": "coworking",
+        "slug": "regus-world-trade-tower-sector-16-noida",
+        "name": "Regus World Trade Tower"
+      },
+      {
+        "type": "managed-office",
+        "slug": "smartworks-world-trade-tower",
+        "name": "Smartworks"
+      }
+    ]
+  },
+  {
+    "slug": "welldone-tech-park-gurgaon",
+    "name": "Welldone Tech Park",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "spring-house-welldone-tech-park-sohna-road-gurgaon",
+        "name": "Spring House Welldone Tech Park"
+      },
+      {
+        "type": "managed-office",
+        "slug": "springhouse-sohna-road",
+        "name": "SpringHouse"
+      }
+    ]
+  },
+  {
+    "slug": "salcon-rasvilas-delhi",
+    "name": "Salcon Rasvilas",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "innov8-saket-delhi",
+        "name": "Innov8 Salcon Rasvilas"
+      },
+      {
+        "type": "coworking",
+        "slug": "nukleus-co-working-and-managed-offices-saket",
+        "name": "Nukleus Salcon Rasvilas"
+      }
+    ]
+  },
+  {
+    "slug": "two-horizon-center-gurgaon",
+    "name": "Two Horizon Center",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "corporatedge-golf-course-road-gurugram",
+        "name": "CorporatEdge Two Horizon Centre"
+      },
+      {
+        "type": "managed-office",
+        "slug": "simpliworktwo-horizon-two-horizon-center",
+        "name": "Simpliwork"
+      }
+    ]
+  },
+  {
+    "slug": "dlf-grand-mall-gurgaon",
+    "name": "DLF Grand Mall",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "spring-house-grand-mall-mg-road-gurgaon",
+        "name": "Spring House Grand Mall"
+      },
+      {
+        "type": "managed-office",
+        "slug": "springhouse-dlf-grand-mall",
+        "name": "SpringHouse"
+      }
+    ]
+  },
+  {
+    "slug": "worldmark-1-delhi",
+    "name": "Worldmark 1",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "cowrks-worldmark-1",
+        "name": "COWRKS Worldmark 1"
+      },
+      {
+        "type": "coworking",
+        "slug": "the-executive-centre-worldmark-aerocity-delhi",
+        "name": "The Executive Centre Worldmark"
+      }
+    ]
+  },
+  {
+    "slug": "dynasty-business-park-mumbai",
+    "name": "Dynasty Business Park",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "devx-dynasty",
+        "name": "DevX Dynasty Business Park"
+      },
+      {
+        "type": "coworking",
+        "slug": "regus-dynasty-business-park-andheri",
+        "name": "Regus Dynasty Business Park"
+      }
+    ]
+  },
+  {
+    "slug": "ambience-mall-gurgaon",
+    "name": "Ambience Mall",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "awfis-ambience-mall",
+        "name": "Awfis Ambience Mall"
+      },
+      {
+        "type": "managed-office",
+        "slug": "awfis-ambience-mall",
+        "name": "awfis"
+      }
+    ]
+  },
+  {
+    "slug": "paras-trinity-gurgaon",
+    "name": "Paras Trinity",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "awfis-paras-trinity-gurgaon",
+        "name": "Awfis Paras Trinity"
+      },
+      {
+        "type": "managed-office",
+        "slug": "awfis-sector63gurgaon",
+        "name": "awfis"
+      }
+    ]
+  },
+  {
+    "slug": "kaledonia-mumbai",
+    "name": "Kaledonia",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "redbricks-andheri-east",
+        "name": "Redbrick Offices Kaledonia"
+      },
+      {
+        "type": "coworking",
+        "slug": "regus-kaledonia-andheri-east-mumbai",
+        "name": "Regus Kaledonia"
+      }
+    ]
+  },
+  {
+    "slug": "the-capital-mumbai",
+    "name": "The Capital",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "esziworkn-bkc-mumbai",
+        "name": "EsziWorkN The Capital"
+      },
+      {
+        "type": "coworking",
+        "slug": "the-executive-centre-the-capital-mumbai",
+        "name": "The Executive Centre The Capital"
+      }
+    ]
+  },
+  {
+    "slug": "statesman-house-delhi",
+    "name": "Statesman House",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "altf-coworking-statesman-house",
+        "name": "AltF Coworking Statesman House"
+      },
+      {
+        "type": "coworking",
+        "slug": "avanta-business-centre-connaught-place-delhi",
+        "name": "Avanta Business Centre Statesman House"
+      }
+    ]
+  },
+  {
+    "slug": "solitaire-corporate-park-mumbai",
+    "name": "Solitaire Corporate Park",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "community-coworks-andheri-east-jb-nagar-mumbai",
+        "name": "Community Coworks Solitaire Corporate Park"
+      },
+      {
+        "type": "coworking",
+        "slug": "innov8-solitaire-corporate-park-mumbai",
+        "name": "Innov8 Solitaire Corporate Park"
+      }
+    ]
+  },
+  {
+    "slug": "bhutani-alphathum-noida",
+    "name": "Bhutani Alphathum",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "coworkzen-alphathum-sector-90-noida",
+        "name": "CoWorkZen Bhutani Alphathum"
+      },
+      {
+        "type": "coworking",
+        "slug": "awfis-bhutani-alphathum-sector-90-noida",
+        "name": "Awfis Bhutani Alphathum"
+      }
+    ]
+  },
+  {
+    "slug": "dlf-building-7a-gurgaon",
+    "name": "DLF Building 7A",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "91-spring-board-dlf-2-gurugram",
+        "name": "91springboard DLF Building No 7A"
+      },
+      {
+        "type": "managed-office",
+        "slug": "91springboard-dlf-building-no-7a",
+        "name": "91Springboard"
+      }
+    ]
+  },
+  {
+    "slug": "corenthum-noida",
+    "name": "Corenthum",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "incuspaze-corenthum-sector-62-noida",
+        "name": "Incuspaze Corenthum"
+      },
+      {
+        "type": "coworking",
+        "slug": "india-accelerator-iconic-corenthum-sector-62-noida",
+        "name": "India Accelerator Iconic Corenthum"
+      }
+    ]
+  },
+  {
+    "slug": "supreme-business-park-mumbai",
+    "name": "Supreme Business Park",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "regus-supreme-business-park-mumbai",
+        "name": "Regus Supreme Business Park"
+      },
+      {
+        "type": "coworking",
+        "slug": "vatika-business-centre-powai-mumbai",
+        "name": "Vatika Business Centre Supreme Business Park"
+      }
+    ]
+  },
+  {
+    "slug": "rupa-solitaire-mumbai",
+    "name": "Rupa Solitaire",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "regus-rupa-solitaire-mumbai",
+        "name": "Regus Rupa Solitaire"
+      },
+      {
+        "type": "coworking",
+        "slug": "officebing-rupa-solitaire-navi-mumbai-mumbai",
+        "name": "Officebing - Rupa Solitaire"
+      }
+    ]
+  },
+  {
+    "slug": "logix-cyber-park-noida",
+    "name": "Logix Cyber Park",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "smartworks-logix-cyber-park-noida",
+        "name": "Smartworks Logix Cyber Park"
+      },
+      {
+        "type": "managed-office",
+        "slug": "smartworks-sector62",
+        "name": "Smartworks"
+      }
+    ]
+  },
+  {
+    "slug": "times-square-mumbai",
+    "name": "Times Square",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "innov8-times-square-mumbai",
+        "name": "Innov8 Times Square"
+      },
+      {
+        "type": "coworking",
+        "slug": "smartworks-times-square-mumbai",
+        "name": "Smartworks Times Square"
+      }
+    ]
+  },
+  {
+    "slug": "green-boulevard-noida",
+    "name": "Green Boulevard",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "regus-green-boulevard-noida",
+        "name": "Regus Green Boulevard"
+      },
+      {
+        "type": "managed-office",
+        "slug": "incuspaze-sector62",
+        "name": "Incuspaze"
+      }
+    ]
+  },
+  {
+    "slug": "tapasya-corp-heights-noida",
+    "name": "Tapasya Corp Heights",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "qbicals-tapasya-corp-heights-noida",
+        "name": "Qbicals Tapasya Corp Heights"
+      },
+      {
+        "type": "coworking",
+        "slug": "akasa-tapasya-corp-heights-noida",
+        "name": "Akasa Tapasya Corp Heights"
+      }
+    ]
+  },
+  {
+    "slug": "trapezoid-it-park-noida",
+    "name": "Trapezoid IT Park",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "efc-offices-trapezoid-it-park-sector-62-noida",
+        "name": "EFC Offices Trapezoid IT Park"
+      },
+      {
+        "type": "managed-office",
+        "slug": "akasa-coworking-trapezoida-it-park",
+        "name": "Akasa Coworking"
+      }
+    ]
+  },
+  {
+    "slug": "kalpataru-prime-mumbai",
+    "name": "Kalpataru Prime",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "awfis-kalpataru-prime-mumbai",
+        "name": "Awfis Kalpataru Prime"
+      },
+      {
+        "type": "coworking",
+        "slug": "innov8-kalpataru-prime-thane-west-mumbai",
+        "name": "Innov8 Kalpataru Prime"
+      }
+    ]
+  },
+  {
+    "slug": "r-city-mall-mumbai",
+    "name": "R City Mall",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "innov8-rcity-ghatkopar-mumbai",
+        "name": "Innov8 R City"
+      },
+      {
+        "type": "coworking",
+        "slug": "awfis-r-city-mall-mumbai",
+        "name": "Awfis R City Mall"
+      }
+    ]
+  },
+  {
+    "slug": "vipul-tech-square-gurgaon",
+    "name": "Vipul Tech Square",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "spring-house-vipul-tech-square-gurgaon",
+        "name": "Spring House Vipul Tech Square"
+      },
+      {
+        "type": "managed-office",
+        "slug": "springhouse-viput-tech-square",
+        "name": "SpringHouse"
+      }
+    ]
+  },
+  {
+    "slug": "jmd-regent-arcade-gurgaon",
+    "name": "JMD Regent Arcade",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "spring-house-jmd-regent-arcade-gurgaon",
+        "name": "Spring House JMD Regent Arcade"
+      },
+      {
+        "type": "managed-office",
+        "slug": "springhouse-mgroadgurgaon",
+        "name": "SpringHouse"
+      }
+    ]
+  },
+  {
+    "slug": "unitech-trade-centre-gurgaon",
+    "name": "Unitech Trade Centre",
+    "centres": [
+      {
+        "type": "coworking",
+        "slug": "spring-house-unitech-trade-centre-gurgaon",
+        "name": "Spring House Unitech Trade Centre"
+      },
+      {
+        "type": "managed-office",
+        "slug": "springhouse-unitech-trade-center",
+        "name": "SpringHouse"
+      }
+    ]
+  }
+]
