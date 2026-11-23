@@ -1,4 +1,5 @@
 import models from '../../models/index.js';
+import { refreshWebsitePages } from '../../utilities/website-cache-refresh.js';
 const NewSeo = models['NewSeo'];
 class ManageNewSeoService {
     constructor() {
@@ -74,7 +75,7 @@ class ManageNewSeoService {
         reviews
     }) {
         try {
-            return await NewSeo.create({
+            const created = await NewSeo.create({
                 title,
                 page_title,
                 script,
@@ -91,6 +92,9 @@ class ManageNewSeoService {
                 open_graph,
                 reviews
             });
+            // Show the new text on the website at once instead of after its page cache expires.
+            refreshWebsitePages(created?.path);
+            return created;
         } catch (error) {
             throw error;
         }
@@ -115,7 +119,7 @@ class ManageNewSeoService {
         reviews
     }) {
         try {
-            return await NewSeo.findOneAndUpdate(
+            const updated = await NewSeo.findOneAndUpdate(
                 { _id: seoId },
                 {
                     title,
@@ -134,7 +138,9 @@ class ManageNewSeoService {
                     open_graph,
                     reviews
                 },
-                this.updateOptions)
+                this.updateOptions);
+            refreshWebsitePages(updated?.path);
+            return updated;
         } catch (e) {
             throw (e)
         }

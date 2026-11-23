@@ -172,8 +172,8 @@ class ManageCoLivingSpaceService {
                 .sort({
                     [sortBy]: sortType
                 });
-            const toalCoLivingSpaces = await CoLivingSpace.find(condition);
-            result.count = toalCoLivingSpaces.length;
+            // Count on the server: loading every matching document just to count it used most of the data transfer.
+            result.count = await CoLivingSpace.countDocuments(condition);
             result.coLivingSpaces = this._checkUserFavorite(coLivingSpaces, userId);
             return result;
         } catch (error) {

@@ -9,7 +9,8 @@ const MicroLocation = models['MicroLocation'];
 const Category = models['Category'];
 const Brand = models['Brand'];
 
-const blackListWS = [
+/** Closed or hidden centres kept out of every public list (the listing index uses it too). */
+export const blackListWS = [
     'abl-workspaces-dlf-cyber-hub-gurugram',
     'abl-workspaces-golf-course-road-e773-gurugram',
     'deskin-coworking-solutions',
@@ -594,8 +595,8 @@ class ManageWorkSpaceService {
                 .sort({
                     [sortBy]: sortType
                 });
-            const toalWorkSpaces = await WorkSpace.find(condition);
-            result.count = toalWorkSpaces.length;
+            // Count on the server: loading every matching document just to count it used most of the data transfer.
+            result.count = await WorkSpace.countDocuments(condition);
             result.workSpaces = this._checkUserFavorite(workSpaces, userId, minPrice, maxPrice);
             return result;
         } catch (error) {

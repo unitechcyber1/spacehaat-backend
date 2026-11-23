@@ -1,4 +1,5 @@
 import models from '../../models/index.js';
+import { refreshWebsitePages } from '../../utilities/website-cache-refresh.js';
 
 // Access the Blog model
 const Blog = models['Blog'];
@@ -29,6 +30,7 @@ class ManageBlogService {
                 cover_picture,
                 detail
             });
+            refreshWebsitePages(['/blog', `/blog/${slug}`]);
             return blog;
         } catch (error) {
             throw (error);
@@ -38,10 +40,12 @@ class ManageBlogService {
     async updateBlog({ blogId, heading, description, blog_type, cover_picture, seo, detail }) {
         try {
             const slug = await this._createSlug(blogId, heading);
-            return await Blog.findOneAndUpdate(
+            const blog = await Blog.findOneAndUpdate(
                 { _id: blogId },
                 { heading, description, blog_type, cover_picture, slug, seo, detail },
                 { new: true });
+            refreshWebsitePages(['/blog', `/blog/${slug}`]);
+            return blog;
         } catch (e) {
             throw (e)
         }
@@ -154,7 +158,9 @@ class ManageBlogService {
 
     async changeBlogStatus({ blogId, status }) {
         try {
-            return await Blog.findOneAndUpdate({ _id: blogId }, { $set: { status } });
+            const blog = await Blog.findOneAndUpdate({ _id: blogId }, { $set: { status } }, { new: true });
+            refreshWebsitePages(['/blog', blog?.slug ? `/blog/${blog.slug}` : '']);
+            return blog;
         } catch (error) {
             throw error;
         }
@@ -167,6 +173,7 @@ class ManageBlogService {
                 this._throwException('Opps! Slug is already used by another Blog');
             }
             await Blog.findOneAndUpdate({ _id: id }, { slug });
+            refreshWebsitePages(['/blog', `/blog/${slug}`]);
             return true;
         } catch (error) {
             throw (error);

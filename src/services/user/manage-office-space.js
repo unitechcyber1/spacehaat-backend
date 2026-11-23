@@ -148,8 +148,8 @@ class ManageOfficeSpaceService {
                 .sort({
                     [sortBy]: sortType
                 });
-            const toalOfficeSpaces = await OfficeSpace.find(condition);
-            result.count = toalOfficeSpaces.length;
+            // Count on the server: loading every matching document just to count it used most of the data transfer.
+            result.count = await OfficeSpace.countDocuments(condition);
             result.officeSpaces = this._checkUserFavorite(officeSpaces, userId);
             return result;
         } catch (error) {

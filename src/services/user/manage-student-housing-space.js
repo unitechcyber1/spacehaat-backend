@@ -111,8 +111,8 @@ class ManageStudentHousingService {
                 .skip(skip)
                 .sort({
                     [sortBy]: sortType });
-            const toalStudentHousings = await StudentHousing.find(condition);
-            result.count = toalStudentHousings.length;
+            // Count on the server: loading every matching document just to count it used most of the data transfer.
+            result.count = await StudentHousing.countDocuments(condition);
             result.StudentHousings = this._checkUserFavorite(StudentHousings, userId);
             return result;
         } catch (error) {

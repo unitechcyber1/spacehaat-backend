@@ -160,8 +160,8 @@ class ManageFlatSpaceService {
                 .sort({
                     [sortBy]: sortType
                 });
-            const toalFlatSpaces = await Flats.find(condition);
-            result.count = toalFlatSpaces.length;
+            // Count on the server: loading every matching document just to count it used most of the data transfer.
+            result.count = await Flats.countDocuments(condition);
             result.FlatSpaces = this._checkUserFavorite(FlatSpaces, userId);
             return result;
         } catch (error) {
