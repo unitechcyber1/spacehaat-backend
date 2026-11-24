@@ -12,6 +12,7 @@ import FileUpload from '../../controllers/common/fileUpload.js'
 const spreadsheetId = "1uwiOeDkq4Bq596adnXC5bfE7SWFyscrLNcQOv7vVdqc";
 import { web_query_sheet } from '../../utilities/queryToExcelSheet.js';
 import mongoose from 'mongoose';
+import { refreshWebsitePages } from '../../utilities/website-cache-refresh.js';
 const { ObjectId } = mongoose.Types;
 const range = "Coworking!A2:C2"; // Update row 2 in Sheet1
 const WorkSpace = models['WorkSpace'];
@@ -805,7 +806,9 @@ class ManageWorkSpaceService {
             // A listing can have no pin (the locator throws without one): use its saved country then.
             const country_name = (geometry && findCountryByCoordinate(+location.latitude, +location.longitude)?.name) || country_dbname;
             let currency_code = getCountry(country_name).currency;
-            return await WorkSpace.findOneAndUpdate({ _id: id }, {
+            // `new: true`: reply with the saved record, not the one before the save. The admin
+            // refills its form from this reply, so the old copy put the previous name back.
+            const saved = await WorkSpace.findOneAndUpdate({ _id: id }, {
                 name,
                 description,
                 new_description,
@@ -839,7 +842,10 @@ class ManageWorkSpaceService {
                 added_by_user,
                 calendar,
                 ...reviewAndAreaFields({ ratings_count, ratings_source, area_sqft }),
-            })
+            }, { new: true })
+            // Rebuild the listing's website pages now, so a new name or price shows at once.
+            if (saved?.slug) refreshWebsitePages([`/coworking/${saved.slug}`, `/virtual-office/${saved.slug}`]);
+            return saved;
         } catch (error) {
             throw error;
         }
