@@ -15,6 +15,7 @@ import { smartMatchRouter } from './modules/smart-match/smart-match.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { leadsRouter } from './modules/leads/leads.routes.js';
 import { devicesRouter } from './modules/devices/devices.routes.js';
+import { expensesRouter } from './modules/expenses/expenses.routes.js';
 import { startLeadReminderScheduler } from './modules/leads/lead-reminders.scheduler.js';
 import { backfillEnquiries } from './modules/leads/leads.backfill.js';
 import { Lead } from './modules/leads/leads.model.js';
@@ -48,6 +49,7 @@ export function createCrmRouter() {
     router.use(requireAuth, dashboardRouter);
     router.use(requireAuth, leadsRouter);
     router.use(requireAuth, devicesRouter);
+    router.use(requireAuth, expensesRouter);
 
     router.use(errorMiddleware);
     return router;

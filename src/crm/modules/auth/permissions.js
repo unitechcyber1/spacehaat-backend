@@ -21,6 +21,8 @@ export const PERMISSIONS = {
     LEADS_WRITE: 'leads:write',
     LEADS_ASSIGN: 'leads:assign',
     USERS_MANAGE: 'users:manage',
+    // Add and see one's own expenses (admins see and manage everyone's).
+    EXPENSES_WRITE: 'expenses:write',
 };
 
 export const ALL_PERMISSIONS = Object.values(PERMISSIONS);
