@@ -27,7 +27,7 @@ function resolveLogoPath() {
     return candidates.find((p) => fs.existsSync(p)) || null;
 }
 
-function drawBrandMark(doc, left, y) {
+export function drawBrandMark(doc, left, y) {
     const logoPath = resolveLogoPath();
     if (logoPath) {
         try {
@@ -161,7 +161,7 @@ async function loadRawImage(url) {
     return fetchViaHttp(trimmed);
 }
 
-async function fetchImageBuffer(url) {
+export async function fetchImageBuffer(url) {
     let lastErr;
     for (let attempt = 1; attempt <= IMAGE_FETCH_RETRIES; attempt += 1) {
         try {

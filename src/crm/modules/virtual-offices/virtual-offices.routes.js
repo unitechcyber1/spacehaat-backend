@@ -12,6 +12,8 @@ import {
     virtualOfficeStats,
     voCityAllowed,
 } from '../../../services/virtual-office-listings.js';
+import { getPublicUserById } from '../auth/auth.service.js';
+import { buildVoProposalPdf, buildVoProposalText } from './vo-proposal.js';
 
 /**
  * Virtual office listings for the Haat app. Staff with listing access see the ones in their
@@ -51,6 +53,39 @@ virtualOfficesRouter.get('/virtual-offices', canRead, async (req, res) => {
 
 virtualOfficesRouter.get('/virtual-offices/stats', canRead, async (req, res) => {
     res.json(await virtualOfficeStats({ allowedCities: cityScope(req.user) }));
+});
+
+/** Offices for a proposal, in the order picked; ones outside the user's cities are refused. */
+async function proposalInput(req) {
+    const body = req.body || {};
+    const ids = (Array.isArray(body.ids) ? body.ids : []).map(String).filter(Boolean).slice(0, 15);
+    if (!ids.length) throw new ApiError(400, 'Pick at least one virtual office', 'NO_OFFICES');
+    const docs = await Promise.all(ids.map((id) => run(() => getVirtualOffice(id))));
+    docs.forEach((d) => assertCity(req.user, d.city));
+    const me = await getPublicUserById(req.user.id);
+    return {
+        offices: docs.map((d) => serializeVo(d, { withCost: false })),
+        opts: {
+            clientName: String(body.clientName || '').trim().slice(0, 80),
+            channel: body.channel === 'email' ? 'email' : 'whatsapp',
+            withAddress: body.withAddress === true,
+            sender: { name: me?.name || req.user.name, phone: me?.phone || '' },
+        },
+    };
+}
+
+/** Proposal as text for WhatsApp / email. `hasPhotos` says whether a PDF would carry pictures. */
+virtualOfficesRouter.post('/virtual-offices/proposal', canRead, async (req, res) => {
+    const { offices, opts } = await proposalInput(req);
+    res.json({ ...buildVoProposalText(offices, opts), hasPhotos: offices.some((o) => o.images.length > 0) });
+});
+
+virtualOfficesRouter.post('/virtual-offices/proposal/pdf', canRead, async (req, res) => {
+    const { offices, opts } = await proposalInput(req);
+    const pdf = await buildVoProposalPdf(offices, opts);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="SpaceWallah_Virtual_Office_Proposal.pdf"');
+    res.send(pdf);
 });
 
 virtualOfficesRouter.get('/virtual-offices/:id', canRead, async (req, res) => {
