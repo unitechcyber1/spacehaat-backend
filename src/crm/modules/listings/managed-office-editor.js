@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { canEnableListings } from '../auth/permissions.js';
 import models from '../../../models/index.js';
 import { slugifyText } from '../../../utilities/pg-slug.js';
 import { ApiError } from '../../utils/apiError.js';
@@ -293,7 +294,7 @@ function nest(set) {
 
 export async function createManagedOffice(body, user) {
     requireFields(body);
-    const { set } = await toDbUpdate(body, { isAdmin: user?.role === 'admin' });
+    const { set } = await toDbUpdate(body, { isAdmin: canEnableListings(user) });
     const area = set['location.micro_location_string'] || body.labels?.microLocation || set['location.name'] || '';
     const doc = nest(set);
     try {
@@ -318,7 +319,9 @@ export async function updateManagedOffice(id, body, user) {
     requireFields(body);
     const existing = await ManagedOffice.findById(id).select('slug').lean();
     if (!existing) return null;
-    const { set, unset } = await toDbUpdate(body, { isAdmin: user?.role === 'admin' });
+    const { set, unset } = await toDbUpdate(body, { isAdmin: canEnableListings(user) });
+    // Switching an office on or off on the website needs the "enable properties" permission.
+    if (!canEnableListings(user)) delete set.is_active;
     const wanted = slugifyText(str(body.slug, 200));
     if (wanted && wanted !== existing.slug) {
         if (await ManagedOffice.exists({ slug: wanted, _id: { $ne: id } })) {

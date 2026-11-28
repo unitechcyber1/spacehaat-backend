@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import models from '../../../models/index.js';
+import { searchClauses } from './listing-search.js';
 
 /**
  * CRM inventory = the website's coworking spaces (the `WorkSpace` collection the admin panel manages).
@@ -211,7 +212,7 @@ const CITY_ALIASES = {
     'new delhi': ['new delhi', 'delhi'],
 };
 
-const aliasesOf = (n) => CITY_ALIASES[String(n || '').toLowerCase().trim()] || [String(n || '').toLowerCase().trim()];
+export const aliasesOf = (n) => CITY_ALIASES[String(n || '').toLowerCase().trim()] || [String(n || '').toLowerCase().trim()];
 
 /** Is this space's city inside the user's cities (null scope = all cities)? Handles Gurgaon/Gurugram etc. */
 export function inCityScope(scope, city) {
@@ -293,20 +294,13 @@ export async function workspaceQuery(filters = {}, search = '') {
         and.push({ $or: or });
     }
 
-    const tokens = String(search || '').trim().split(/\s+/).filter(Boolean).slice(0, 6);
-    for (const token of tokens) {
-        const re = new RegExp(escape(token), 'i');
-        and.push({
-            $or: [
-                { name: re },
-                { 'location.address1': re },
-                { 'location.micro_location_string': re },
-                { 'location.name': re },
-                { 'location.landmark': re },
-                { 'location.metro_stop_landmark': re },
-            ],
-        });
-    }
+    and.push(...(await searchClauses(search, {
+        text: ['name', 'slug', 'location.address1', 'location.micro_location_string', 'location.name',
+            'location.building_name', 'location.landmark', 'location.metro_stop_landmark'],
+        city: 'location.city',
+        micro: 'location.micro_location',
+        brand: 'brand',
+    })));
     return and.length ? { $and: and } : {};
 }
 
@@ -351,6 +345,12 @@ export async function listingsByIds(ids) {
         missing = valid.filter((id) => !map.has(id));
     }
     if (missing.length) {
+        const { PO_POPULATE, toCrmPrivateOffice } = await import('./private-office-listings.js');
+        const pos = await models.OfficeSpace.find({ _id: { $in: missing } }).populate(PO_POPULATE).lean();
+        for (const d of pos) map.set(String(d._id), toCrmPrivateOffice(d));
+        missing = valid.filter((id) => !map.has(id));
+    }
+    if (missing.length) {
         const old = await Listing.find({ _id: { $in: missing } }).lean();
         for (const l of old) map.set(String(l._id), legacyRow(l));
     }
@@ -361,12 +361,13 @@ export async function listingsByIds(ids) {
 export async function existingListingIds(ids) {
     const valid = (ids || []).map(String).filter(isId);
     if (!valid.length) return [];
-    const [ws, mo, old] = await Promise.all([
+    const [ws, mo, po, old] = await Promise.all([
         WorkSpace.find({ _id: { $in: valid } }).select('_id').lean(),
         ManagedOffice.find({ _id: { $in: valid } }).select('_id').lean(),
+        models.OfficeSpace.find({ _id: { $in: valid } }).select('_id').lean(),
         Listing.find({ _id: { $in: valid } }).select('_id').lean(),
     ]);
-    const found = new Set([...ws, ...mo, ...old].map((d) => String(d._id)));
+    const found = new Set([...ws, ...mo, ...po, ...old].map((d) => String(d._id)));
     return valid.filter((id) => found.has(id));
 }
 
@@ -376,7 +377,7 @@ export async function listingById(id) {
 }
 
 export function isWorkspaceListing(l) {
-    return l?.source === 'workspace' || l?.source === 'managed-office' || l?.source === 'pg';
+    return l?.source === 'workspace' || l?.source === 'managed-office' || l?.source === 'pg' || l?.source === 'private-office';
 }
 
 export { WorkSpace };

@@ -1,5 +1,5 @@
 import { ApiError } from '../../utils/apiError.js';
-import { cityScope } from '../auth/permissions.js';
+import { canUseModule, cityScope } from '../auth/permissions.js';
 
 import { listListings } from '../listings/listings.service.js';
 import { parseRequirements } from './smart-match.parser.js';
@@ -47,7 +47,10 @@ function mergeRequirements(base, patch) {
 
 export async function parseEnquiry(enquiry, user) {
     const allowed = cityScope(user);
-    const listings = await listListings({ allowedCities: allowed, liveOnly: true });
+    // Smart Match searches coworking spaces, so it needs the Coworking section.
+    const listings = canUseModule(user, 'coworking')
+        ? await listListings({ allowedCities: allowed, liveOnly: true })
+        : { items: [] };
     const ctx = buildParseContext(listings.items);
     const { requirements, source } = await parseRequirements(enquiry, ctx);
     return { requirements, source, context: { cities: ctx.cities, amenities: ctx.amenities.slice(0, 16) } };
@@ -57,11 +60,9 @@ export async function runSmartMatch(input, user) {
     const allowed = cityScope(user);
     const cityFilter = input.cityFilter && input.cityFilter !== 'All cities' ? input.cityFilter : undefined;
 
-    const { items: listings } = await listListings({
-        allowedCities: allowed,
-        city: cityFilter,
-        liveOnly: true,
-    });
+    const { items: listings } = canUseModule(user, 'coworking')
+        ? await listListings({ allowedCities: allowed, city: cityFilter, liveOnly: true })
+        : { items: [] };
 
     const ctx = buildParseContext(listings);
 

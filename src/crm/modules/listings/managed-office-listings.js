@@ -1,4 +1,5 @@
 import models from '../../../models/index.js';
+import { searchClauses } from './listing-search.js';
 import {
     ADMIN_URL, LISTING_STATUSES, SITE_URL, STATUS_FROM_KEY,
     cityIds, daysSince, escape, freshOfDays, freshnessRange, hours, inCityScope, stripHtml,
@@ -184,21 +185,13 @@ export async function managedOfficeQuery(filters = {}, search = '') {
         and.push({ $or: or });
     }
 
-    const tokens = String(search || '').trim().split(/\s+/).filter(Boolean).slice(0, 6);
-    for (const token of tokens) {
-        const re = new RegExp(escape(token), 'i');
-        and.push({
-            $or: [
-                { name: re },
-                { 'location.building_name': re },
-                { 'location.address1': re },
-                { 'location.micro_location_string': re },
-                { 'location.name': re },
-                { 'location.landmark': re },
-                { 'location.metro_stop_landmark': re },
-            ],
-        });
-    }
+    and.push(...(await searchClauses(search, {
+        text: ['name', 'slug', 'location.building_name', 'location.address1', 'location.micro_location_string',
+            'location.name', 'location.landmark', 'location.metro_stop_landmark'],
+        city: 'location.city',
+        micro: 'location.micro_location',
+        brand: 'brand',
+    })));
     return and.length ? { $and: and } : {};
 }
 

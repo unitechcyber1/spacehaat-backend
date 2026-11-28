@@ -1,7 +1,7 @@
 import { Router } from '../../utils/router.js';
 import { ApiError } from '../../utils/apiError.js';
 import { requirePermission, requireRole } from '../auth/auth.middleware.js';
-import { PERMISSIONS, cityScope, isAdmin } from '../auth/permissions.js';
+import { PERMISSIONS, canEnableListings, canUseModule, cityScope, isAdmin } from '../auth/permissions.js';
 import {
     createVirtualOffice,
     deleteVirtualOffice,
@@ -22,8 +22,24 @@ import { buildVoProposalPdf, buildVoProposalText } from './vo-proposal.js';
  */
 export const virtualOfficesRouter = Router();
 
-const canRead = requirePermission(PERMISSIONS.LISTINGS_READ);
-const canWrite = requirePermission(PERMISSIONS.LISTINGS_WRITE);
+/** Only users whose space types include Virtual office (admins always) use this section. */
+function voModule(req, _res, next) {
+    if (!canUseModule(req.user, 'virtual-office')) {
+        next(new ApiError(403, 'You do not have access to virtual offices', 'MODULE_FORBIDDEN'));
+        return;
+    }
+    next();
+}
+const canRead = [requirePermission(PERMISSIONS.LISTINGS_READ), voModule];
+const canWrite = [requirePermission(PERMISSIONS.LISTINGS_WRITE), voModule];
+
+/** Switching an office Active / Inactive needs the "enable properties" permission; new ones then start Inactive. */
+function guardStatus(user, body, { creating }) {
+    if (canEnableListings(user)) return;
+    delete body.status;
+    delete body.isActive;
+    if (creating) body.status = 'Inactive';
+}
 const q = (req) => Object.fromEntries(Object.entries(req.query).filter(([, v]) => typeof v === 'string'));
 const actorOf = (user) => String(user?.name || user?.email || user?.id || '');
 
@@ -98,6 +114,7 @@ virtualOfficesRouter.post('/virtual-offices', canWrite, async (req, res) => {
     const body = { ...(req.body || {}) };
     // The operator price is admin-only, so members can't set it either.
     if (!isAdmin(req.user)) delete body.annualPriceInr;
+    guardStatus(req.user, body, { creating: true });
     assertCity(req.user, String(body.city || ''));
     const doc = await run(() => createVirtualOffice(body, actorOf(req.user)));
     res.status(201).json({ item: out(req.user, doc) });
@@ -108,6 +125,7 @@ virtualOfficesRouter.patch('/virtual-offices/:id', canWrite, async (req, res) =>
     assertCity(req.user, current.city);
     const body = { ...(req.body || {}) };
     if (!isAdmin(req.user)) delete body.annualPriceInr;
+    guardStatus(req.user, body, { creating: false });
     if (body.city !== undefined) assertCity(req.user, String(body.city));
     const doc = await run(() => updateVirtualOffice(String(req.params.id), body, actorOf(req.user)));
     res.json({ item: out(req.user, doc) });

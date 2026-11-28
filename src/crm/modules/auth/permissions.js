@@ -23,6 +23,8 @@ export const PERMISSIONS = {
     USERS_MANAGE: 'users:manage',
     // Add and see one's own expenses (admins see and manage everyone's).
     EXPENSES_WRITE: 'expenses:write',
+    // Approve / reject a property and switch it on or off on the website, in the sections the user has.
+    LISTINGS_ENABLE: 'listings:enable',
 };
 
 export const ALL_PERMISSIONS = Object.values(PERMISSIONS);
@@ -56,9 +58,47 @@ export function cityScope(user) {
     return cities.length ? cities : [];
 }
 
-/** Space-type scope for members. Empty/unset = no restriction (back-compat). */
+/**
+ * Space types a user can be given. Each one opens an inventory section in the apps and routes leads:
+ *   CW coworking · MO managed office · PO private office · CL PG / coliving · VO virtual office.
+ * OS (office space) is the older code for both office sections; it is kept so existing users still work.
+ */
+export const USER_SPACE_TYPES = ['CW', 'MO', 'PO', 'CL', 'VO', 'OS'];
+
+/** Inventory section (the apps' `vertical`) → the space types that open it. */
+export const MODULE_SPACE_TYPES = {
+    coworking: ['CW'],
+    'managed-office': ['MO', 'OS'],
+    'private-office': ['PO', 'OS'],
+    coliving: ['CL'],
+    'virtual-office': ['VO'],
+};
+export const INVENTORY_MODULES = Object.keys(MODULE_SPACE_TYPES);
+
+/** Sections a user may see: every section for admins, else only those their space types open. */
+export function inventoryModules(user) {
+    if (!user) return [];
+    if (user.role === 'admin') return [...INVENTORY_MODULES];
+    const types = new Set((user.spaceTypes || []).filter(Boolean));
+    return INVENTORY_MODULES.filter((m) => MODULE_SPACE_TYPES[m].some((t) => types.has(t)));
+}
+
+export function canUseModule(user, vertical) {
+    return inventoryModules(user).includes(vertical);
+}
+
+/** May approve / reject a property and switch it on or off (admins always). */
+export function canEnableListings(user) {
+    return hasPermission(user, PERMISSIONS.LISTINGS_ENABLE);
+}
+
+/**
+ * Lead space types a member works on (lead codes CW / VO / CL / OS), or null = no restriction (back-compat).
+ * Managed office and private office both work on "Office space" (OS) leads.
+ */
 export function spaceTypeScope(user) {
     if (!user || user.role === 'admin') return null;
     const types = (user.spaceTypes || []).filter(Boolean);
-    return types.length ? types : null;
+    if (!types.length) return null;
+    return [...new Set(types.map((t) => (t === 'MO' || t === 'PO' ? 'OS' : t)))];
 }

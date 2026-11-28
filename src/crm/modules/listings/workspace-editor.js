@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { canEnableListings } from '../auth/permissions.js';
 import { Types } from 'mongoose';
 import { getCountry } from 'country-currency-map';
 import models from '../../../models/index.js';
@@ -421,7 +422,7 @@ export function duplicateError(err) {
 
 export async function createWorkspace(body, user) {
     requireFields(body);
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = canEnableListings(user);
     const { set } = await toDbUpdate(body, { isAdmin });
     const expireAt = new Date();
     expireAt.setMonth(expireAt.getMonth() + 3);
@@ -454,10 +455,12 @@ export async function createWorkspace(body, user) {
 
 export async function updateWorkspace(id, body, user) {
     requireFields(body);
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = canEnableListings(user);
     const existing = await WorkSpace.findById(id).select('slug location.name status').lean();
     if (!existing) return null;
     const { set, unset } = await toDbUpdate(body, { isAdmin });
+    // Switching a space on or off on the website needs the "enable properties" permission.
+    if (!isAdmin) delete set.is_active;
 
     const wanted = slugify(str(body.slug, 200));
     let addPrevious = '';

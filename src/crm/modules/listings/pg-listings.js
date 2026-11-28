@@ -1,6 +1,7 @@
 import models from '../../../models/index.js';
 import { pgIndexInGoogle } from '../../../utilities/pg-response-formatter.js';
 import { ADMIN_URL, SITE_URL, daysSince, escape, freshOfDays, freshnessRange, inCityScope, stripHtml } from './workspace-listings.js';
+import { searchWords, wordRegex } from './listing-search.js';
 
 /**
  * PGs / coliving (the website's `/coliving` vertical, `PG` collection) in the CRM listing shape, so they
@@ -152,10 +153,10 @@ export function pgQuery(filters = {}, search = '') {
         and.push({ $or: or });
     }
 
-    const tokens = String(search || '').trim().split(/\s+/).filter(Boolean).slice(0, 6);
-    for (const token of tokens) {
-        const re = new RegExp(escape(token), 'i');
-        and.push({ $or: [{ name: re }, { locality: re }, { address: re }, { slug: re }, { pg_id: re }] });
+    // City and locality are plain text on PGs, so every word is matched against them directly.
+    for (const word of searchWords(search)) {
+        const re = wordRegex(word);
+        and.push({ $or: [{ name: re }, { locality: re }, { city: re }, { address: re }, { slug: re }, { pg_id: re }, { availableFor: re }] });
     }
     return { $and: and };
 }

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import models from '../models/index.js';
 import { slugifyText } from '../utilities/pg-slug.js';
+import { searchWords, wordRegex } from '../crm/modules/listings/listing-search.js';
 
 const { VirtualOfficeListing, City } = models;
 
@@ -184,10 +185,10 @@ export async function listVirtualOffices(filters = {}, { allowedCities = null, w
     if (filters.maxPrice !== undefined && filters.maxPrice !== '' && Number.isFinite(Number(filters.maxPrice))) price.$lte = Number(filters.maxPrice);
     if (Object.keys(price).length) and.push({ sellingPriceInr: price });
 
-    const search = String(filters.search || '').trim();
-    if (search) {
-        const re = new RegExp(escapeRe(search.slice(0, 80)), 'i');
-        and.push({ $or: [{ spaceName: re }, { locality: re }, { city: re }, { fullAddress: re }, { amenities: re }, { phoneNumber: re }] });
+    // Every word of the search must match somewhere (name, area, city, address…), as in the other sections.
+    for (const word of searchWords(String(filters.search || '').slice(0, 120))) {
+        const re = wordRegex(word);
+        and.push({ $or: [{ spaceName: re }, { locality: re }, { city: re }, { state: re }, { fullAddress: re }, { amenities: re }, { phoneNumber: re }, { slug: re }] });
     }
 
     const query = and.length ? { $and: and } : {};

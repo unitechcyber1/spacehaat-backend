@@ -1,4 +1,5 @@
 import models from '../../../models/index.js';
+import { canEnableListings } from '../auth/permissions.js';
 import managePg from '../../../services/admin/manage-pg.js';
 import { ApiError } from '../../utils/apiError.js';
 import { img, isId, str } from './workspace-editor.js';
@@ -279,7 +280,7 @@ const fromServiceError = (err) => {
 
 export async function createPgFromCrm(body, user) {
     requireFields(body);
-    const fields = toPgFields(body, { isAdmin: user?.role === 'admin', existing: null });
+    const fields = toPgFields(body, { isAdmin: canEnableListings(user), existing: null });
     if (!fields.status) fields.status = 'inprogress';
     try {
         const created = await managePg.createPg(fields);
@@ -293,7 +294,9 @@ export async function updatePgFromCrm(id, body, user) {
     requireFields(body);
     const existing = await PG.findOne({ _id: id, delete: { $ne: true } }).lean();
     if (!existing) return null;
-    const fields = toPgFields(body, { isAdmin: user?.role === 'admin', existing });
+    const fields = toPgFields(body, { isAdmin: canEnableListings(user), existing });
+    // Switching a PG on or off on the website needs the "enable properties" permission.
+    if (!canEnableListings(user)) delete fields.active;
     try {
         await managePg.updatePg({ id: String(id), ...fields });
         return String(id);

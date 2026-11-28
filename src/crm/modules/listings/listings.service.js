@@ -16,6 +16,9 @@ import { MO_POPULATE, ManagedOffice, managedOfficeQuery, managedOfficeStatusCoun
 import { createManagedOffice, updateManagedOffice } from './managed-office-editor.js';
 import { PG, PG_POPULATE, PG_STATUS_FROM_KEY, pgQuery, pgStatusCounts, toCrmPg } from './pg-listings.js';
 import { createPgFromCrm, updatePgFromCrm } from './pg-editor.js';
+import { OfficeSpace, PO_POPULATE, privateOfficeQuery, privateOfficeStatusCounts, toCrmPrivateOffice } from './private-office-listings.js';
+import { createPrivateOffice, updatePrivateOffice } from './private-office-editor.js';
+import { canEnableListings } from '../auth/permissions.js';
 
 export { freshOfDays };
 
@@ -34,6 +37,13 @@ const PG_SORTS = {
     seats: { updated_on: -1, _id: -1 },
     name: { name: 1, _id: 1 },
 };
+const PO_SORTS = {
+    updated: { updated_on: -1, _id: -1 },
+    newest: { added_on: -1, _id: -1 },
+    price: { 'other_detail.monthly_rent': 1, _id: 1 },
+    seats: { 'other_detail.area_for_lease_in_sq_ft': -1, _id: -1 },
+    name: { name: 1, _id: 1 },
+};
 const SORTS = {
     updated: { updated_on: -1, _id: -1 },
     newest: { added_on: -1, _id: -1 },
@@ -49,13 +59,14 @@ const SORTS = {
 export async function listListings(filters, options = {}) {
     const mo = filters.vertical === 'managed-office';
     const pg = filters.vertical === 'coliving';
-    const Model = pg ? PG : mo ? ManagedOffice : WorkSpace;
-    const q = pg ? pgQuery(filters, options.search)
+    const po = filters.vertical === 'private-office';
+    const Model = po ? OfficeSpace : pg ? PG : mo ? ManagedOffice : WorkSpace;
+    const q = po ? await privateOfficeQuery(filters, options.search) : pg ? pgQuery(filters, options.search)
         : mo ? await managedOfficeQuery(filters, options.search) : await workspaceQuery(filters, options.search);
-    const counts = () => (pg ? pgStatusCounts(filters, options.search)
+    const counts = () => (po ? privateOfficeStatusCounts(filters, options.search) : pg ? pgStatusCounts(filters, options.search)
         : mo ? managedOfficeStatusCounts(filters, options.search) : statusCounts(filters, options.search));
-    const map = pg ? toCrmPg : mo ? toCrmManagedOffice : toCrmListing;
-    const populate = pg ? PG_POPULATE : mo ? MO_POPULATE : POPULATE;
+    const map = po ? toCrmPrivateOffice : pg ? toCrmPg : mo ? toCrmManagedOffice : toCrmListing;
+    const populate = po ? PO_POPULATE : pg ? PG_POPULATE : mo ? MO_POPULATE : POPULATE;
     const paginate = options.page !== undefined || options.limit !== undefined;
     const page = Math.max(1, options.page ?? 1);
     const limit = paginate ? Math.min(100, Math.max(1, options.limit ?? 20)) : undefined;
@@ -65,7 +76,7 @@ export async function listListings(filters, options = {}) {
         return { ...EMPTY_PAGE, limit: limit ?? 20, ...(withCounts ? { statusCounts: await counts() } : {}) };
     }
 
-    const sorts = pg ? PG_SORTS : mo ? MO_SORTS : SORTS;
+    const sorts = po ? PO_SORTS : pg ? PG_SORTS : mo ? MO_SORTS : SORTS;
     const sort = sorts[options.sort] || sorts.updated;
     let rows;
     let total;
@@ -97,16 +108,19 @@ const MANAGED = 'Spaces are deleted in the admin panel.';
 
 /** New coworking space from the CRM apps (saved as a website WorkSpace, Pending unless an admin approves). */
 export async function createListing(body, user) {
-    const id = body.vertical === 'coliving' ? await createPgFromCrm(body, user)
-        : body.vertical === 'managed-office' ? await createManagedOffice(body, user) : await createWorkspace(body, user);
+    const canEnable = canEnableListings(user);
+    const id = body.vertical === 'private-office' ? await createPrivateOffice(body, user, { canEnable })
+        : body.vertical === 'coliving' ? await createPgFromCrm(body, user)
+            : body.vertical === 'managed-office' ? await createManagedOffice(body, user) : await createWorkspace(body, user);
     await saveImageTitles(body.photos);
     return listingById(id);
 }
 
 export async function updateListing(id, body, user) {
-    const [isMo, isPg] = await Promise.all([ManagedOffice.exists({ _id: id }), PG.exists({ _id: id })]);
-    const saved = isPg ? await updatePgFromCrm(id, body, user)
-        : isMo ? await updateManagedOffice(id, body, user) : await updateWorkspace(id, body, user);
+    const [isMo, isPg, isPo] = await Promise.all([ManagedOffice.exists({ _id: id }), PG.exists({ _id: id }), OfficeSpace.exists({ _id: id })]);
+    const saved = isPo ? await updatePrivateOffice(id, body, user, { canEnable: canEnableListings(user) })
+        : isPg ? await updatePgFromCrm(id, body, user)
+            : isMo ? await updateManagedOffice(id, body, user) : await updateWorkspace(id, body, user);
     if (!saved) return null;
     await saveImageTitles(body.photos);
     return listingById(id);
@@ -133,7 +147,7 @@ const PRIORITY_RESET = {
  * `status` is the app key: approved | pending | inprogress | rejected.
  */
 export async function setListingStatus(id, status) {
-    const [isMo, isPg] = await Promise.all([ManagedOffice.exists({ _id: id }), PG.exists({ _id: id })]);
+    const [isMo, isPg, isPo] = await Promise.all([ManagedOffice.exists({ _id: id }), PG.exists({ _id: id }), OfficeSpace.exists({ _id: id })]);
     if (isPg) {
         const dbStatus = PG_STATUS_FROM_KEY[status];
         if (!dbStatus) throw new ApiError(400, 'Unknown status', 'BAD_STATUS');
@@ -141,7 +155,7 @@ export async function setListingStatus(id, status) {
     } else {
         const dbStatus = STATUS_TO_DB[status];
         if (!dbStatus) throw new ApiError(400, 'Unknown status', 'BAD_STATUS');
-        const Model = isMo ? ManagedOffice : WorkSpace;
+        const Model = isPo ? OfficeSpace : isMo ? ManagedOffice : WorkSpace;
         const existing = await Model.findById(id).select('status').lean();
         if (!existing) return null;
         const $set = { status: dbStatus, ...(dbStatus === 'reject' && existing.status !== 'reject' ? PRIORITY_RESET : {}) };
@@ -158,6 +172,7 @@ export async function verifyListing(id, userId) {
     let res = await WorkSpace.updateOne({ _id: id }, { $set }, { timestamps: false });
     if (!res.matchedCount) res = await ManagedOffice.updateOne({ _id: id }, { $set }, { timestamps: false });
     if (!res.matchedCount) res = await PG.updateOne({ _id: id }, { $set }, { timestamps: false });
+    if (!res.matchedCount) res = await OfficeSpace.updateOne({ _id: id }, { $set }, { timestamps: false });
     if (!res.matchedCount) return null;
     return listingById(id);
 }

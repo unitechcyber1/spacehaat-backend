@@ -20,7 +20,8 @@ function memberMatchesSpaceType(user, spaceType) {
     const types = user.spaceTypes || [];
     // Empty spaceTypes = legacy unrestricted
     if (!types.length) return true;
-    return types.includes(spaceType);
+    // Managed office / private office members take "Office space" (OS) leads.
+    return types.some((t) => t === spaceType || (spaceType === 'OS' && (t === 'MO' || t === 'PO')));
 }
 
 export async function assertAssigneeEligible(assigneeId) {
