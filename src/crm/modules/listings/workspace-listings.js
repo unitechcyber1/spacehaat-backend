@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import models from '../../../models/index.js';
 import { searchClauses } from './listing-search.js';
+import { safePopulate } from './safe-populate.js';
 
 /**
  * CRM inventory = the website's coworking spaces (the `WorkSpace` collection the admin panel manages).
@@ -212,7 +213,11 @@ const CITY_ALIASES = {
     'new delhi': ['new delhi', 'delhi'],
 };
 
-export const aliasesOf = (n) => CITY_ALIASES[String(n || '').toLowerCase().trim()] || [String(n || '').toLowerCase().trim()];
+export const aliasesOf = (n) => {
+    const key = String(n || '').toLowerCase().trim();
+    // Own keys only: words like "constructor" must not pick up Object.prototype members.
+    return Object.hasOwn(CITY_ALIASES, key) ? CITY_ALIASES[key] : [key];
+};
 
 /** Is this space's city inside the user's cities (null scope = all cities)? Handles Gurgaon/Gurugram etc. */
 export function inCityScope(scope, city) {
@@ -222,7 +227,7 @@ export function inCityScope(scope, city) {
 }
 
 export async function cityIds(names) {
-    const wanted = [...new Set(names.flatMap((n) => CITY_ALIASES[String(n).toLowerCase().trim()] || [String(n).toLowerCase().trim()]))];
+    const wanted = [...new Set(names.flatMap((n) => aliasesOf(n)))].filter(Boolean);
     if (!wanted.length) return [];
     const rows = await City.find({ name: { $in: wanted.map((n) => new RegExp(`^${escape(n)}$`, 'i')) } }).select('_id').lean();
     return rows.map((r) => r._id);
@@ -329,24 +334,24 @@ function legacyRow(l) {
 export async function listingsByIds(ids) {
     const valid = (ids || []).map(String).filter(isId);
     if (!valid.length) return [];
-    const ws = await WorkSpace.find({ _id: { $in: valid } }).populate(POPULATE).lean();
+    const ws = await safePopulate(WorkSpace, await WorkSpace.find({ _id: { $in: valid } }).lean(), POPULATE);
     const map = new Map(ws.map((d) => [String(d._id), toCrmListing(d)]));
     let missing = valid.filter((id) => !map.has(id));
     if (missing.length) {
         const { MO_POPULATE, toCrmManagedOffice } = await import('./managed-office-listings.js');
-        const mos = await ManagedOffice.find({ _id: { $in: missing } }).populate(MO_POPULATE).lean();
+        const mos = await safePopulate(ManagedOffice, await ManagedOffice.find({ _id: { $in: missing } }).lean(), MO_POPULATE);
         for (const d of mos) map.set(String(d._id), toCrmManagedOffice(d));
         missing = valid.filter((id) => !map.has(id));
     }
     if (missing.length) {
         const { PG_POPULATE, toCrmPg } = await import('./pg-listings.js');
-        const pgs = await models.PG.find({ _id: { $in: missing }, delete: { $ne: true } }).populate(PG_POPULATE).lean();
+        const pgs = await safePopulate(models.PG, await models.PG.find({ _id: { $in: missing }, delete: { $ne: true } }).lean(), PG_POPULATE);
         for (const d of pgs) map.set(String(d._id), toCrmPg(d));
         missing = valid.filter((id) => !map.has(id));
     }
     if (missing.length) {
         const { PO_POPULATE, toCrmPrivateOffice } = await import('./private-office-listings.js');
-        const pos = await models.OfficeSpace.find({ _id: { $in: missing } }).populate(PO_POPULATE).lean();
+        const pos = await safePopulate(models.OfficeSpace, await models.OfficeSpace.find({ _id: { $in: missing } }).lean(), PO_POPULATE);
         for (const d of pos) map.set(String(d._id), toCrmPrivateOffice(d));
         missing = valid.filter((id) => !map.has(id));
     }

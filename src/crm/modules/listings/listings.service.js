@@ -19,6 +19,7 @@ import { createPgFromCrm, updatePgFromCrm } from './pg-editor.js';
 import { OfficeSpace, PO_POPULATE, privateOfficeQuery, privateOfficeStatusCounts, toCrmPrivateOffice } from './private-office-listings.js';
 import { createPrivateOffice, updatePrivateOffice } from './private-office-editor.js';
 import { canEnableListings } from '../auth/permissions.js';
+import { safePopulate } from './safe-populate.js';
 
 export { freshOfDays };
 
@@ -82,11 +83,12 @@ export async function listListings(filters, options = {}) {
     let total;
     if (paginate) {
         [rows, total] = await Promise.all([
-            Model.find(q).sort(sort).skip((page - 1) * limit).limit(limit).populate(populate).lean(),
+            Model.find(q).sort(sort).skip((page - 1) * limit).limit(limit).lean()
+                .then((docs) => safePopulate(Model, docs, populate)),
             Model.countDocuments(q),
         ]);
     } else {
-        rows = await Model.find(q).sort(sort).populate(populate).lean();
+        rows = await safePopulate(Model, await Model.find(q).sort(sort).lean(), populate);
         total = rows.length;
     }
 

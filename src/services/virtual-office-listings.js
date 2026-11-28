@@ -41,7 +41,7 @@ const CITY_ALIASES = {
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const aliases = (name) => {
     const key = String(name || '').trim().toLowerCase();
-    return CITY_ALIASES[key] || [key];
+    return Object.hasOwn(CITY_ALIASES, key) ? CITY_ALIASES[key] : [key];
 };
 const cityMatcher = (names) => ({
     $in: [...new Set(names.flatMap(aliases))].filter(Boolean).map((n) => new RegExp(`^${escapeRe(n)}$`, 'i')),

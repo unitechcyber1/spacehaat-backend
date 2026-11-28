@@ -30,7 +30,10 @@ const CITY_NAMES = {
     delhi: ['Delhi', 'New Delhi'],
     'new delhi': ['New Delhi', 'Delhi'],
 };
-const cityVariants = (n) => CITY_NAMES[String(n || '').toLowerCase().trim()] || [String(n || '').trim()];
+const cityVariants = (n) => {
+    const key = String(n || '').toLowerCase().trim();
+    return Object.hasOwn(CITY_NAMES, key) ? CITY_NAMES[key] : [String(n || '').trim()];
+};
 
 export function toCrmPg(d) {
     const id = String(d._id);
