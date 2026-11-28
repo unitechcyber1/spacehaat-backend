@@ -7,6 +7,7 @@ import aws from '../../utilities/aws.js';
 import storage from '../../config/storage.js';
 import { renderInvoiceHtml, renderInvoicePrintHtml } from '../../utilities/invoice/invoiceHtml.js';
 import { generateInvoicePdfBuffer } from '../../utilities/invoice/invoicePdf.js';
+import { INVOICE_PDF_LAYOUT } from '../../utilities/invoice/invoiceAssets.js';
 import {
     buildDefaultInvoiceTerms,
     hasShipToSection,
@@ -212,7 +213,7 @@ class ManageInvoiceService {
             sources: ['deal_done', 'renewal', 'manual', 'adjustment'],
             taxModes: ['intra_state', 'inter_state'],
             pricingMode: 'manual',
-            supplier: 'SpaceHaat',
+            supplier: 'SpaceWallah',
             billingClientRequired: true,
             invoiceCreationMode: 'billing_client',
             default_payment_terms_days: billingProfile.default_payment_terms_days || 7,
@@ -239,7 +240,7 @@ class ManageInvoiceService {
         });
         if (!code) {
             this._throw(
-                'Bill From GST state (seller_state_code) is required. Select a SpaceHaat state profile in billing settings or on the invoice.',
+                'Bill From GST state (seller_state_code) is required. Select a SpaceWallah state profile in billing settings or on the invoice.',
                 400
             );
         }
@@ -1152,7 +1153,7 @@ class ManageInvoiceService {
         };
     }
 
-    async _uploadPdfBuffer(invoiceId, buffer) {
+    async _uploadPdfBuffer(invoiceId, buffer, filename) {
         const bucket = process.env.AWS_S3_BUCKET || 'cofynd-staging';
         const key = `${storage.s3.path.document}/invoices/${invoiceId}.pdf`;
         const uploaded = await aws.S3Upload({
@@ -1160,6 +1161,8 @@ class ManageInvoiceService {
             Key: key,
             Body: buffer,
             ContentType: 'application/pdf',
+            // Name used when the stored PDF is saved straight from its S3 link.
+            ...(filename ? { ContentDisposition: `inline; filename="${filename.replace(/\//g, '-')}"` } : {}),
         });
         return uploaded?.Location || null;
     }
@@ -1180,8 +1183,9 @@ class ManageInvoiceService {
         // Don't cache the fallback layout: the next download should retry the preview-matching render.
         if (store && !fallback) {
             try {
-                pdf_url = await this._uploadPdfBuffer(id, buffer);
+                pdf_url = await this._uploadPdfBuffer(id, buffer, filename);
                 invoice.pdf_url = pdf_url;
+                invoice.pdf_layout = INVOICE_PDF_LAYOUT;
                 invoice.html_snapshot = fresh.html_snapshot;
                 if (invoice.status === 'draft' && fresh.billing_snapshot) {
                     invoice.billing_snapshot = fresh.billing_snapshot;
@@ -1198,15 +1202,26 @@ class ManageInvoiceService {
         return { buffer, filename, pdf_url, invoice: fresh };
     }
 
+    /**
+     * The PDF file itself. A stored copy is used only when it was made with the current layout (logo); older
+     * copies are remade. Always returns the bytes so the admin never has to fetch from S3 directly.
+     */
     async getPdf({ id, regenerate = false, actorUser }) {
         const invoice = await this.getById({ id, actorUser });
-        if (!regenerate && invoice.pdf_url) {
-            return {
-                buffer: null,
-                pdf_url: invoice.pdf_url,
-                filename: invoicePdfFilename(invoice),
-                from_cache: true,
-            };
+        if (!regenerate && invoice.pdf_url && invoice.pdf_layout === INVOICE_PDF_LAYOUT) {
+            try {
+                const res = await fetch(invoice.pdf_url);
+                if (res.ok) {
+                    return {
+                        buffer: Buffer.from(await res.arrayBuffer()),
+                        pdf_url: invoice.pdf_url,
+                        filename: invoicePdfFilename(invoice),
+                        from_cache: true,
+                    };
+                }
+            } catch (err) {
+                console.error('Invoice PDF fetch from S3 failed, remaking it:', err?.message || err);
+            }
         }
         const result = await this.generatePdf({ id, store: true, actorUser });
         return {
@@ -1234,7 +1249,7 @@ class ManageInvoiceService {
             },
             html,
             print_html,
-            pdf_url: invoice.pdf_url || null,
+            pdf_url: invoice.pdf_layout === INVOICE_PDF_LAYOUT ? invoice.pdf_url || null : null,
             filename,
         };
     }

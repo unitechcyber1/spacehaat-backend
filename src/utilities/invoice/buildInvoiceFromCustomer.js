@@ -99,7 +99,7 @@ export function resolveBillingForInvoice(globalProfile, { seller_state_code } = 
     });
     const stateProfile = resolveStateProfile(globalProfile, sellerStateCode);
     if (!stateProfile) {
-        throw new Error('No SpaceHaat state GST profile configured. Add state_profiles in billing settings.');
+        throw new Error('No SpaceWallah state GST profile configured. Add state_profiles in billing settings.');
     }
     return {
         seller_state_code: sellerStateCode,

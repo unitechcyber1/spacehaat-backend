@@ -46,7 +46,7 @@ export function buildSellerSnapshot(globalProfile, stateProfile) {
     const state = stateProfile || {};
 
     return {
-        supplier: 'SpaceHaat',
+        supplier: 'SpaceWallah',
         legal_name: globalProfile.legal_name,
         trade_name: globalProfile.trade_name || globalProfile.legal_name,
         gstin: state.gstin || globalProfile.gstin,

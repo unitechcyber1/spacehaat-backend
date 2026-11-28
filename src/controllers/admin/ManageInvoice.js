@@ -111,18 +111,15 @@ class ManageInvoiceController {
                 actorUser: actorUserFromRequest(req),
             });
 
-            if (result.from_cache && result.pdf_url && !regenerate && !result.buffer) {
-                return res.redirect(result.pdf_url);
-            }
-
             if (!result.buffer) {
                 return res.status(404).json({ message: 'PDF not available' });
             }
 
             res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
             res.setHeader(
                 'Content-Disposition',
-                `${download ? 'attachment' : 'inline'}; filename="${result.filename}"`
+                `${download ? 'attachment' : 'inline'}; filename="${String(result.filename).replace(/\//g, '-')}"`
             );
             return res.status(200).send(result.buffer);
         } catch (e) { next(e); }

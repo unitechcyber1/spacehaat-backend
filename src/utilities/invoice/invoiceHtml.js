@@ -91,7 +91,7 @@ const BASE_STYLES = `
     align-items: start;
     margin-bottom: 8px;
   }
-  .inv-logo { height: 42px; width: auto; max-width: 200px; object-fit: contain; display: block; margin-bottom: 12px; }
+  .inv-logo { height: 38px; width: auto; max-width: 230px; object-fit: contain; display: block; margin-bottom: 12px; }
   .inv-brand-fallback { margin: 0 0 12px; font-size: 28px; font-weight: 800; color: ${BRAND}; letter-spacing: -0.02em; }
   .inv-seller-lines { font-size: 12px; color: #555; line-height: 1.55; }
   .inv-seller-lines strong { color: #222; font-size: 13px; display: block; margin-bottom: 4px; font-weight: 700; }
@@ -276,7 +276,7 @@ const PDF_EXPORT_STYLES = `
 
 const PREVIEW_TOOLBAR = `
 <div class="no-print" style="position:sticky;top:0;z-index:10;background:${BRAND_INK};color:#fff;padding:12px 20px;display:flex;gap:12px;align-items:center;justify-content:space-between;">
-  <strong>SpaceHaat Invoice Preview</strong>
+  <strong>SpaceWallah Invoice Preview</strong>
   <button type="button" onclick="window.print()" style="background:${BRAND};color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:700;">Print</button>
 </div>`;
 
@@ -326,8 +326,8 @@ export function renderInvoiceHtml(invoice, options = {}) {
 
     const logoSrc = getInvoiceLogoBase64();
     const logoHtml = logoSrc
-        ? `<img class="inv-logo" src="${logoSrc}" alt="SpaceHaat" />`
-        : '<h1 class="inv-brand-fallback">spacehaat</h1>';
+        ? `<img class="inv-logo" src="${logoSrc}" alt="SpaceWallah" />`
+        : '<h1 class="inv-brand-fallback">SpaceWallah</h1>';
 
     const sellerName = seller.legal_name || seller.trade_name || 'Unitechcyber Technologies Pvt Ltd';
 

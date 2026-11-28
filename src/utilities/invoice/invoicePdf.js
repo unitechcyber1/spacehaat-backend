@@ -271,13 +271,13 @@ function generateInvoicePdfKitBuffer(invoice) {
             let y = doc.page.margins.top;
 
             // ── Invoice meta (left) + logo (right) ──
-            const logoW = 130;
+            const logoW = 180;
             const logoH = 36;
             if (invoiceLogoExists()) {
-                doc.image(INVOICE_LOGO_PATH, leftX + pageWidth - logoW, y, { width: logoW, height: logoH, fit: [logoW, logoH] });
+                doc.image(INVOICE_LOGO_PATH, leftX + pageWidth - logoW, y, { fit: [logoW, logoH], align: 'right' });
             } else {
                 doc.font('Helvetica-Bold').fontSize(18).fillColor(BRAND)
-                    .text('SpaceHaat', leftX + pageWidth - logoW, y, { width: logoW, align: 'right' });
+                    .text('SpaceWallah', leftX + pageWidth - logoW, y, { width: logoW, align: 'right' });
             }
 
             const metaRows = [

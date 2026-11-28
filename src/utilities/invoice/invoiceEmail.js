@@ -73,7 +73,7 @@ export function buildDefaultInvoiceEmailSubject(invoice) {
     const num = invoice?.invoice_number || 'Draft';
     const total = formatInvoiceTotal(invoice?.total);
     const due = formatInvoiceDueDate(invoice?.due_date);
-    return `Invoice ${num} from SpaceHaat — Rs. ${total} due ${due}`;
+    return `Invoice ${num} from SpaceWallah — Rs. ${total} due ${due}`;
 }
 
 export function buildInvoiceEmailHtmlVariables({

@@ -83,7 +83,7 @@ export function amountInWords(amount) {
 export function invoicePdfFilename(invoice) {
     const num = invoice?.invoice_number || invoice?._id || 'draft';
     const safe = String(num).replace(/[^a-zA-Z0-9/_-]+/g, '-');
-    return `SpaceHaat-Invoice-${safe}.pdf`;
+    return `SpaceWallah-Invoice-${safe}.pdf`;
 }
 
 /** Bill To: company name first, billing/contact name second. */

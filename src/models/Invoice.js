@@ -146,6 +146,8 @@ const InvoiceSchema = new Schema({
 
     html_snapshot: String,
     pdf_url: String,
+    /** Layout the stored PDF was made with; a saved PDF from an older layout (e.g. the SpaceHaat logo) is remade. */
+    pdf_layout: String,
     email_sent_at: Date,
     email_deliveries: { type: [InvoiceEmailDeliverySchema], default: [] },
 
